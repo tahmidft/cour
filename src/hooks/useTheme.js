@@ -28,9 +28,9 @@ export function getThemeStyles(isDark, accentSet) {
     bgPanel: isDark ? "#13131a" : "#ffffff",
     bgSidebar: isDark ? "#0f0f16" : "#fafafa",
     border: isDark ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
-    textPrimary: isDark ? "#e8e6df" : "#0d0d12",
-    textSec: isDark ? "#888" : "#666",
-    textMuted: isDark ? "#444" : "#bbb",
+    textPrimary: isDark ? "#f5f4f0" : "#0d0d12",
+    textSec: isDark ? "#e8e6df" : "#666",
+    textMuted: isDark ? "#d4d2cc" : "#888",
   };
 }
 

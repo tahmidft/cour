@@ -1,43 +1,53 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
-import { useTrackedShows } from "../hooks/useTrackedShows";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { supabase } from "../lib/supabase";
 import { ACCENTS } from "../hooks/useTheme";
+import { MODE_OPTIONS, NOTIFICATION_MODES } from "../lib/notificationModes";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
 export default function Settings() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const { shows, toggleWeeklyReminder } = useTrackedShows(user?.id);
+  const { shows, toggleWeeklyReminder } = useTrackedShowsContext();
   const { theme, accentKey, isDark, styles, setTheme, setAccentKey, allAccents } =
     useThemeContext();
   const { accent, soft, bgPanel, bgSidebar, border, textPrimary, textSec, textMuted } = styles;
 
-  const [weeklyAll, setWeeklyAll] = useState(true);
+  const [notificationMode, setNotificationMode] = useState(NOTIFICATION_MODES.WEEKLY_SUMMARY);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
 
   useEffect(() => {
     if (!user?.id) return;
     supabase
       .from("profiles")
-      .select("weekly_reminders_all")
+      .select("notification_mode, weekly_reminders_all")
       .eq("id", user.id)
       .single()
       .then(({ data }) => {
-        if (data) setWeeklyAll(data.weekly_reminders_all ?? true);
+        if (data?.notification_mode) {
+          setNotificationMode(data.notification_mode);
+        } else if (data?.weekly_reminders_all === false) {
+          setNotificationMode(NOTIFICATION_MODES.NONE);
+        }
+        setLoadingPrefs(false);
       });
   }, [user?.id]);
 
-  async function toggleWeeklyAll() {
-    const next = !weeklyAll;
-    setWeeklyAll(next);
+  async function setMode(mode) {
+    setNotificationMode(mode);
+    const weeklyAll = mode !== NOTIFICATION_MODES.NONE;
     await supabase
       .from("profiles")
-      .update({ weekly_reminders_all: next })
+      .update({
+        notification_mode: mode,
+        weekly_reminders_all: weeklyAll,
+      })
       .eq("id", user.id);
-    toast.success(next ? "Weekly reminders on" : "Weekly reminders off");
+    toast.success(mode === NOTIFICATION_MODES.NONE ? "All emails off" : "Email preference saved");
   }
 
   async function handleSignOut() {
@@ -49,6 +59,16 @@ export default function Settings() {
     borderBottom: `1px solid ${border}`,
     padding: "16px 20px",
   };
+
+  const radioStyle = (active) => ({
+    display: "block",
+    padding: "10px 12px",
+    marginBottom: 6,
+    cursor: "pointer",
+    border: `1px solid ${active ? accent : border}`,
+    background: active ? soft : "transparent",
+    borderLeft: active ? `2px solid ${accent}` : `2px solid transparent`,
+  });
 
   return (
     <Layout activeTab="SETTINGS">
@@ -144,96 +164,91 @@ export default function Settings() {
             <div
               style={{ fontSize: 9, letterSpacing: "0.2em", color: accent, marginBottom: 12 }}
             >
-              NOTIFICATIONS
+              EMAIL NOTIFICATIONS
             </div>
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 16,
-              }}
-            >
-              <span style={{ fontSize: 11, color: textPrimary }}>
-                Weekly episode reminders (all shows)
-              </span>
-              <button
-                type="button"
-                onClick={toggleWeeklyAll}
-                style={{
-                  width: 40,
-                  height: 20,
-                  borderRadius: 10,
-                  border: "none",
-                  background: weeklyAll ? accent : border,
-                  cursor: "pointer",
-                  position: "relative",
-                }}
-              >
-                <span
-                  style={{
-                    position: "absolute",
-                    top: 2,
-                    left: weeklyAll ? 22 : 2,
-                    width: 16,
-                    height: 16,
-                    borderRadius: "50%",
-                    background: "#fff",
-                    transition: "left 0.15s",
-                  }}
-                />
-              </button>
-            </div>
-
-            {shows.map((show) => (
-              <div
-                key={show.id}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "8px 0",
-                  borderTop: `1px solid ${border}`,
-                }}
-              >
-                {show.cover_image && (
-                  <img
-                    src={show.cover_image}
-                    alt=""
-                    style={{ width: 32, height: 44, objectFit: "cover" }}
-                  />
-                )}
-                <div style={{ flex: 1, fontSize: 11, color: textPrimary }}>
-                  {show.title_en}
+            {loadingPrefs ? (
+              <div style={{ fontSize: 11, color: textMuted }}>Loading...</div>
+            ) : (
+              MODE_OPTIONS.map((opt) => (
+                <div
+                  key={opt.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setMode(opt.id)}
+                  style={radioStyle(notificationMode === opt.id)}
+                >
+                  <div style={{ fontSize: 11, color: textPrimary, marginBottom: 4 }}>
+                    {opt.label}
+                  </div>
+                  <div style={{ fontSize: 9, color: textMuted, lineHeight: 1.5 }}>
+                    {opt.description}
+                  </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => toggleWeeklyReminder(show.id, show.weekly_reminder)}
+              ))
+            )}
+          </div>
+
+          {notificationMode !== NOTIFICATION_MODES.NONE && shows.length > 0 && (
+            <div style={sectionStyle}>
+              <div
+                style={{ fontSize: 9, letterSpacing: "0.2em", color: accent, marginBottom: 8 }}
+              >
+                PER-SHOW (exclude from emails)
+              </div>
+              <div style={{ fontSize: 9, color: textMuted, marginBottom: 12 }}>
+                Turn off a show to skip it in digests and alerts
+              </div>
+              {shows.map((show) => (
+                <div
+                  key={show.id}
                   style={{
-                    width: 36,
-                    height: 18,
-                    borderRadius: 9,
-                    border: "none",
-                    background: show.weekly_reminder ? accent : border,
-                    cursor: "pointer",
-                    position: "relative",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "8px 0",
+                    borderTop: `1px solid ${border}`,
                   }}
                 >
-                  <span
+                  {show.cover_image && (
+                    <img
+                      src={show.cover_image}
+                      alt=""
+                      style={{ width: 32, height: 44, objectFit: "cover" }}
+                    />
+                  )}
+                  <div style={{ flex: 1, fontSize: 11, color: textPrimary }}>
+                    {show.title_en}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleWeeklyReminder(show.id, show.weekly_reminder)}
+                    title={show.weekly_reminder ? "Included in emails" : "Excluded"}
                     style={{
-                      position: "absolute",
-                      top: 2,
-                      left: show.weekly_reminder ? 20 : 2,
-                      width: 14,
-                      height: 14,
-                      borderRadius: "50%",
-                      background: "#fff",
+                      width: 36,
+                      height: 18,
+                      borderRadius: 9,
+                      border: "none",
+                      background: show.weekly_reminder ? accent : border,
+                      cursor: "pointer",
+                      position: "relative",
                     }}
-                  />
-                </button>
-              </div>
-            ))}
-          </div>
+                  >
+                    <span
+                      style={{
+                        position: "absolute",
+                        top: 2,
+                        left: show.weekly_reminder ? 20 : 2,
+                        width: 14,
+                        height: 14,
+                        borderRadius: "50%",
+                        background: "#fff",
+                      }}
+                    />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </Layout>

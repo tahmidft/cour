@@ -6,7 +6,7 @@ import Ticker from "./Ticker";
 import ThemePicker from "./ThemePicker";
 import ShowSearch from "./ShowSearch";
 import { buildTickerItems, mapTrackedShow } from "../lib/showUtils";
-import { useTrackedShows } from "../hooks/useTrackedShows";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { dayFromAiringAt } from "../lib/showUtils";
 
 const TABS = [
@@ -29,7 +29,7 @@ export default function Layout({ activeTab, children, stats }) {
   } = useThemeContext();
   const { accent, soft, bg, bgPanel, border, textPrimary, textSec, textMuted } = styles;
 
-  const { shows, addShow, refetch } = useTrackedShows(user?.id);
+  const { shows, addShow, refetch } = useTrackedShowsContext();
   const mapped = shows.map(mapTrackedShow);
   const tickerItems = buildTickerItems(mapped);
 
@@ -135,7 +135,7 @@ export default function Layout({ activeTab, children, stats }) {
           <div
             role="button"
             tabIndex={0}
-            onClick={() => setShowSearch(true)}
+            onClick={() => { refetch(); setShowSearch(true); }}
             style={{
               padding: "0 16px",
               borderLeft: `1px solid ${border}`,

@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useThemeContext } from "../context/ThemeContext";
 
 function useCountdown(targetMs) {
   const [remaining, setRemaining] = useState(targetMs ? targetMs - Date.now() : null);
@@ -22,10 +23,10 @@ function useCountdown(targetMs) {
 export default function ShowRow({ show, index, accent, isDark, onRemove }) {
   const [hovered, setHovered] = useState(false);
   const countdown = useCountdown(show.nextAiringAt);
+  const { styles } = useThemeContext();
+  const { textPrimary, textMuted } = styles;
 
   const borderColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
-  const textPrimary = isDark ? "#e8e6df" : "#0d0d12";
-  const textMuted = isDark ? "#555" : "#aaa";
   const bg = isDark ? "#13131a" : "#ffffff";
   const bgHover = isDark ? "#1a1a28" : "#f5f5fb";
 
@@ -184,65 +185,75 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
         </div>
       </div>
 
-      {/* Countdown */}
+      {/* Countdown + Remove — in-flow, no overlap */}
       <div
         style={{
           position: "relative",
           zIndex: 2,
-          padding: "9px 14px",
-          textAlign: "right",
-          minWidth: 100,
           display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+          paddingRight: 14,
         }}
       >
-        {countdown ? (
-          <>
-            <div style={{ fontSize: 14, fontWeight: 600, color: accent, fontFamily: "monospace" }}>
-              {countdown}
-            </div>
-            <div style={{ fontSize: 9, color: textMuted, marginTop: 2 }}>
-              ep {show.episode + 1} drops
-            </div>
-          </>
-        ) : show.status === "FINISHED" ? (
-          <div style={{ fontSize: 11, color: textMuted }}>completed</div>
-        ) : (
-          <div style={{ fontSize: 11, color: accent, opacity: 0.7 }}>TBA</div>
-        )}
-        <div style={{ fontSize: 9, color: textMuted, marginTop: 4 }}>
-          {show.totalEpisodes
-            ? `${show.episode} / ${show.totalEpisodes} eps`
-            : "new season"}
+        {/* Remove button — takes space on hover, hidden otherwise */}
+        <div style={{ width: hovered && onRemove ? "auto" : 0, overflow: "hidden", transition: "width 0.15s" }}>
+          {onRemove && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(show.id);
+              }}
+              style={{
+                fontSize: 9,
+                padding: "4px 8px",
+                background: "rgba(200,34,42,0.15)",
+                color: "#c8222a",
+                border: "1px solid rgba(200,34,42,0.3)",
+                cursor: "pointer",
+                letterSpacing: "0.08em",
+                whiteSpace: "nowrap",
+              }}
+            >
+              REMOVE
+            </button>
+          )}
         </div>
-      </div>
 
-      {hovered && onRemove && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove(show.id);
-          }}
+        {/* Countdown text */}
+        <div
           style={{
-            position: "absolute",
-            zIndex: 2,
-            right: 8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            fontSize: 9,
-            padding: "4px 8px",
-            background: "rgba(200,34,42,0.15)",
-            color: "#c8222a",
-            border: "1px solid rgba(200,34,42,0.3)",
-            cursor: "pointer",
-            letterSpacing: "0.08em",
+            padding: "9px 0",
+            textAlign: "right",
+            minWidth: 90,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
           }}
         >
-          REMOVE
-        </button>
-      )}
+          {countdown ? (
+            <>
+              <div style={{ fontSize: 14, fontWeight: 600, color: accent, fontFamily: "monospace" }}>
+                {countdown}
+              </div>
+              <div style={{ fontSize: 9, color: textMuted, marginTop: 2 }}>
+                ep {show.episode + 1} drops
+              </div>
+            </>
+          ) : show.status === "FINISHED" ? (
+            <div style={{ fontSize: 11, color: textMuted }}>completed</div>
+          ) : (
+            <div style={{ fontSize: 11, color: accent, opacity: 0.7 }}>TBA</div>
+          )}
+          <div style={{ fontSize: 9, color: textMuted, marginTop: 4 }}>
+            {show.totalEpisodes
+              ? `${show.episode} / ${show.totalEpisodes} eps`
+              : "new season"}
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

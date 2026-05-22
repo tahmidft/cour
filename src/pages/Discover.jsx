@@ -1,14 +1,14 @@
 import { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
-import { useTrackedShows } from "../hooks/useTrackedShows";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { getAnimeById, getTopAiringAnime } from "../lib/anilist";
 import toast from "react-hot-toast";
 
 export default function Discover() {
   const { user } = useAuth();
-  const { shows, addShow } = useTrackedShows(user?.id);
+  const { shows, addShow } = useTrackedShowsContext();
   const { styles, isDark } = useThemeContext();
   const { accent, soft, bgPanel, border, textPrimary, textMuted } = styles;
 

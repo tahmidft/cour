@@ -3,22 +3,22 @@ import { formatDistanceToNow } from "date-fns";
 import Layout from "../components/Layout";
 import ShowRow, { ShowRowSkeleton } from "../components/ShowRow";
 import { useAuth } from "../hooks/useAuth";
-import { useTrackedShows } from "../hooks/useTrackedShows";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { supabase } from "../lib/supabase";
 import {
   FILTERS,
-  SEASONS,
-  GENRES,
   mapTrackedShow,
   filterShows,
   buildWeekSchedule,
+  buildSeasonList,
+  buildGenreList,
 } from "../lib/showUtils";
 import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { shows, loading, removeShow } = useTrackedShows(user?.id);
+  const { shows, loading, removeShow } = useTrackedShowsContext();
   const { styles, isDark } = useThemeContext();
   const {
     accent,
@@ -33,10 +33,13 @@ export default function Dashboard() {
 
   const [activeFilter, setActiveFilter] = useState("All shows");
   const [activeSeason, setActiveSeason] = useState("All seasons");
+  const [activeGenre, setActiveGenre] = useState("All genres");
   const [notifications, setNotifications] = useState([]);
 
   const mapped = shows.map(mapTrackedShow);
-  const filteredShows = filterShows(mapped, activeFilter, activeSeason);
+  const seasons = buildSeasonList(mapped);
+  const genres = buildGenreList(mapped);
+  const filteredShows = filterShows(mapped, activeFilter, activeSeason, activeGenre);
 
   const dayMap = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
   const today = dayMap[new Date().getDay()];
@@ -138,7 +141,7 @@ export default function Dashboard() {
             >
               SEASON
             </div>
-            {SEASONS.map((s) => (
+            {seasons.map((s) => (
               <div
                 key={s}
                 role="button"
@@ -157,6 +160,11 @@ export default function Dashboard() {
                 {s}
               </div>
             ))}
+            {seasons.length === 1 && (
+              <div style={{ padding: "4px 14px", fontSize: 10, color: textMuted }}>
+                Add shows to see seasons
+              </div>
+            )}
           </div>
 
           <div style={{ paddingTop: 10 }}>
@@ -170,20 +178,31 @@ export default function Dashboard() {
             >
               GENRE
             </div>
-            {GENRES.map((g) => (
+            {["All genres", ...genres].map((g) => (
               <div
                 key={g}
-                style={{ padding: "6px 14px", fontSize: 11, color: textSec, cursor: "pointer" }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.color = textPrimary;
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.color = textSec;
+                role="button"
+                tabIndex={0}
+                onClick={() => setActiveGenre(g)}
+                style={{
+                  padding: "6px 14px",
+                  fontSize: 11,
+                  cursor: "pointer",
+                  color: activeGenre === g ? textPrimary : textSec,
+                  background: activeGenre === g ? soft : "transparent",
+                  borderLeft:
+                    activeGenre === g ? `2px solid ${accent}` : "2px solid transparent",
+                  transition: "all 0.1s",
                 }}
               >
                 {g}
               </div>
             ))}
+            {mapped.length === 0 && (
+              <div style={{ padding: "4px 14px", fontSize: 10, color: textMuted }}>
+                Add shows to see genres
+              </div>
+            )}
           </div>
         </div>
 

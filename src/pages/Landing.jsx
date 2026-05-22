@@ -47,7 +47,7 @@ export default function Landing() {
         <p
           style={{
             fontSize: 14,
-            color: "#888",
+            color: "#d4d2cc",
             lineHeight: 1.8,
             marginBottom: 40,
             letterSpacing: "0.02em",
@@ -95,7 +95,7 @@ export default function Landing() {
           textAlign: "center",
           padding: "20px 0",
           fontSize: 11,
-          color: "#444",
+          color: "#b8b6b0",
           borderTop: "1px solid rgba(255,255,255,0.08)",
         }}
       >

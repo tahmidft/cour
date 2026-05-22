@@ -88,7 +88,7 @@ export default function Auth() {
               <div style={{ fontSize: 12, color: "#a0c4f8", marginBottom: 8, letterSpacing: "0.1em" }}>
                 CHECK YOUR EMAIL
               </div>
-              <p style={{ fontSize: 12, color: "#888", lineHeight: 1.7 }}>
+              <p style={{ fontSize: 12, color: "#d4d2cc", lineHeight: 1.7 }}>
                 We sent a magic link to <strong style={{ color: "#e8e6df" }}>{email}</strong>.
                 Click it to sign in.
               </p>
@@ -98,7 +98,7 @@ export default function Auth() {
                 style={{
                   marginTop: 20,
                   fontSize: 10,
-                  color: "#666",
+                  color: "#d4d2cc",
                   background: "none",
                   border: "none",
                   cursor: "pointer",
@@ -114,7 +114,7 @@ export default function Auth() {
                 style={{
                   fontSize: 9,
                   letterSpacing: "0.15em",
-                  color: "#555",
+                  color: "#d4d2cc",
                   display: "block",
                   marginBottom: 8,
                 }}
@@ -162,7 +162,7 @@ export default function Auth() {
           )}
         </div>
 
-        <p style={{ textAlign: "center", marginTop: 16, fontSize: 10, color: "#555" }}>
+        <p style={{ textAlign: "center", marginTop: 16, fontSize: 10, color: "#d4d2cc" }}>
           No password needed.{" "}
           <span
             role="button"
@@ -180,7 +180,7 @@ export default function Auth() {
           textAlign: "center",
           padding: "20px 0",
           fontSize: 11,
-          color: "#444",
+          color: "#b8b6b0",
           marginTop: 40,
         }}
       >

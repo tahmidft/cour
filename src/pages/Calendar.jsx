@@ -1,6 +1,6 @@
 import Layout from "../components/Layout";
 import { useAuth } from "../hooks/useAuth";
-import { useTrackedShows } from "../hooks/useTrackedShows";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { mapTrackedShow, formatAirTime } from "../lib/showUtils";
 
@@ -15,7 +15,7 @@ function dayIndexFromAirDay(airDay) {
 
 export default function Calendar() {
   const { user } = useAuth();
-  const { shows, loading } = useTrackedShows(user?.id);
+  const { shows, loading } = useTrackedShowsContext();
   const { styles, isDark } = useThemeContext();
   const { accent, soft, bgPanel, border, textPrimary, textMuted } = styles;
 

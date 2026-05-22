@@ -1,6 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../lib/supabase";
+import { getAnimeById } from "../lib/anilist";
 import { inferAirDay } from "../lib/showUtils";
+
+async function backfillMissingGenres(showsList) {
+  const missing = showsList.filter((s) => !s.genres);
+  if (!missing.length) return showsList;
+
+  const updated = await Promise.all(
+    missing.map(async (show) => {
+      try {
+        const media = await getAnimeById(show.anilist_id);
+        if (!media?.genres?.length) return show;
+        const genres = JSON.stringify(media.genres);
+        await supabase.from("tracked_shows").update({ genres }).eq("id", show.id);
+        return { ...show, genres };
+      } catch {
+        return show;
+      }
+    })
+  );
+
+  const byId = new Map(updated.map((s) => [s.id, s]));
+  return showsList.map((s) => byId.get(s.id) || s);
+}
 
 export function useTrackedShows(userId) {
   const [shows, setShows] = useState([]);
@@ -18,7 +41,8 @@ export function useTrackedShows(userId) {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false });
-    setShows(data || []);
+    const list = await backfillMissingGenres(data || []);
+    setShows(list);
     setLoading(false);
   }, [userId]);
 
@@ -42,6 +66,7 @@ export function useTrackedShows(userId) {
       air_day: inferAirDay(anilistMedia),
       season_year: anilistMedia.seasonYear,
       season_number: 1,
+      genres: anilistMedia.genres?.length ? JSON.stringify(anilistMedia.genres) : null,
     });
     if (!error) await fetchShows();
     return error;

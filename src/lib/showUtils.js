@@ -1,8 +1,6 @@
 import { format } from "date-fns";
 
 export const FILTERS = ["All shows", "Airing", "Upcoming", "Finished"];
-export const SEASONS = ["All seasons", "Spring 2025", "Winter 2025", "Fall 2024"];
-export const GENRES = ["Shonen", "Seinen", "Isekai", "Mecha", "Romance", "Horror"];
 
 const STATUS_UI = {
   RELEASING: "AIRING",
@@ -32,6 +30,8 @@ export function parseSeasonLabel(label) {
 
 export function mapTrackedShow(show) {
   const nextEp = show.last_known_episode ?? 0;
+  let genres = [];
+  try { genres = show.genres ? JSON.parse(show.genres) : []; } catch { genres = []; }
   return {
     id: show.id,
     anilistId: show.anilist_id,
@@ -47,18 +47,39 @@ export function mapTrackedShow(show) {
     nextAiringAt: show.next_airing_at,
     coverImage: show.cover_image,
     weeklyReminder: show.weekly_reminder,
+    genres,
   };
 }
 
-export function filterShows(shows, activeFilter, activeSeason) {
+/** Build sorted unique year list from tracked shows for the season sidebar. */
+export function buildSeasonList(shows) {
+  const years = [...new Set(shows.map((s) => s.seasonYear).filter(Boolean))].sort(
+    (a, b) => b - a
+  );
+  return ["All seasons", ...years.map((y) => String(y))];
+}
+
+/** Build sorted unique genre list from tracked shows. */
+export function buildGenreList(shows) {
+  const all = new Set();
+  for (const s of shows) {
+    for (const g of s.genres || []) all.add(g);
+  }
+  return [...all].sort();
+}
+
+export function filterShows(shows, activeFilter, activeSeason, activeGenre) {
   let result = shows;
   if (activeFilter !== "All shows") {
     const allowed = FILTER_STATUS[activeFilter] || [];
     result = result.filter((s) => allowed.includes(s.rawStatus));
   }
   if (activeSeason && activeSeason !== "All seasons") {
-    const { year } = parseSeasonLabel(activeSeason);
+    const year = parseInt(activeSeason, 10);
     result = result.filter((s) => !s.seasonYear || s.seasonYear === year);
+  }
+  if (activeGenre && activeGenre !== "All genres") {
+    result = result.filter((s) => s.genres?.includes(activeGenre));
   }
   return result;
 }

@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./context/ThemeContext";
+import { TrackedShowsProvider } from "./context/TrackedShowsContext";
 import Landing from "./pages/Landing";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <ThemeProvider>
+        <TrackedShowsProvider>
         <Routes>
           <Route path="/" element={<Landing />} />
           <Route path="/auth" element={<Auth />} />
@@ -57,6 +59,7 @@ export default function App() {
             }
           />
         </Routes>
+        </TrackedShowsProvider>
       </ThemeProvider>
     </BrowserRouter>
   );

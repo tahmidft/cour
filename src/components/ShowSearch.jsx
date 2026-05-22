@@ -84,14 +84,14 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
           overflow: "hidden",
         }}
       >
-        <div style={{ padding: 16, borderBottom: `1px solid ${border}` }}>
+        <div style={{ padding: 16, borderBottom: `1px solid ${border}`, display: "flex", gap: 10, alignItems: "center" }}>
           <input
             ref={inputRef}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search anime..."
             style={{
-              width: "100%",
+              flex: 1,
               padding: "12px 14px",
               fontSize: 14,
               background: isDark ? "#0d0d12" : "#f5f5f7",
@@ -101,6 +101,23 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
               letterSpacing: "0.05em",
             }}
           />
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              flexShrink: 0,
+              fontSize: 16,
+              lineHeight: 1,
+              padding: "8px 12px",
+              background: "transparent",
+              color: textMuted,
+              border: `1px solid ${border}`,
+              cursor: "pointer",
+            }}
+            title="Close (Esc)"
+          >
+            ✕
+          </button>
         </div>
 
         <div style={{ flex: 1, overflow: "auto", padding: 12 }}>
@@ -189,7 +206,7 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
             textAlign: "center",
           }}
         >
-          ESC to close
+          ESC or ✕ to close · click outside to dismiss
         </div>
       </div>
     </div>

@@ -7,6 +7,7 @@ create table public.profiles (
   theme text default 'dark',
   accent text default 'blue',
   weekly_reminders_all boolean default true,
+  notification_mode text default 'weekly_summary',
   created_at timestamptz default now()
 );
 
@@ -27,6 +28,7 @@ create table public.tracked_shows (
   season_number int default 1,
   season_year int,
   weekly_reminder boolean default true,
+  genres text,
   created_at timestamptz default now(),
   unique(user_id, anilist_id)
 );
