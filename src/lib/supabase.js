@@ -3,4 +3,12 @@ import { supabaseUrl, supabasePublishableKey, isSupabaseConfigured } from "./sup
 
 export { isSupabaseConfigured };
 
-export const supabase = createClient(supabaseUrl || "", supabasePublishableKey || "");
+export const supabase = createClient(supabaseUrl || "", supabasePublishableKey || "", {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storageKey: "cour-auth",
+    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+  },
+});

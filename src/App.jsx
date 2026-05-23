@@ -1,5 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
-import { useAuth } from "./hooks/useAuth";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { ThemeProvider } from "./context/ThemeContext";
 import { TrackedShowsProvider } from "./context/TrackedShowsContext";
 import Landing from "./pages/Landing";
@@ -12,7 +12,17 @@ import Unsubscribe from "./pages/Unsubscribe";
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth();
-  if (loading) return <div style={{ background: "#0d0d12", minHeight: "100vh" }} />;
+  const waitingForCallback =
+    typeof window !== "undefined" &&
+    loading &&
+    (() => {
+      const q = new URLSearchParams(window.location.search);
+      return q.has("code") || q.has("token_hash");
+    })();
+
+  if (loading || waitingForCallback) {
+    return <div style={{ background: "#0d0d12", minHeight: "100vh" }} />;
+  }
   if (!user) return <Navigate to="/auth" replace />;
   return children;
 }
@@ -20,6 +30,7 @@ function ProtectedRoute({ children }) {
 export default function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
       <ThemeProvider>
         <TrackedShowsProvider>
         <Routes>
@@ -61,6 +72,7 @@ export default function App() {
         </Routes>
         </TrackedShowsProvider>
       </ThemeProvider>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

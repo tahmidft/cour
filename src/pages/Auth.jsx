@@ -12,7 +12,9 @@ export default function Auth() {
   const { user, loading: authLoading } = useAuth();
 
   useEffect(() => {
-    if (!authLoading && user) navigate("/dashboard", { replace: true });
+    if (!authLoading && user) {
+      navigate("/dashboard", { replace: true });
+    }
   }, [user, authLoading, navigate]);
 
   async function handleLogin(e) {
@@ -25,10 +27,11 @@ export default function Auth() {
     }
     setLoading(true);
     setError("");
+    const redirectTo = `${window.location.origin}/auth`;
     const { error: authError } = await supabase.auth.signInWithOtp({
       email,
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: redirectTo,
       },
     });
     if (authError) setError(authError.message);
@@ -108,6 +111,32 @@ export default function Auth() {
                 USE DIFFERENT EMAIL
               </button>
             </div>
+          ) : user ? (
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 12, color: "#a0c4f8", marginBottom: 8, letterSpacing: "0.1em" }}>
+                ALREADY SIGNED IN
+              </div>
+              <p style={{ fontSize: 12, color: "#d4d2cc", lineHeight: 1.7, marginBottom: 16 }}>
+                Your session stays active in this browser until you sign out.
+              </p>
+              <button
+                type="button"
+                onClick={() => navigate("/dashboard")}
+                style={{
+                  width: "100%",
+                  padding: "12px 0",
+                  fontSize: 11,
+                  letterSpacing: "0.12em",
+                  background: "#a0c4f8",
+                  color: "#0d0d12",
+                  border: "none",
+                  cursor: "pointer",
+                  fontWeight: 600,
+                }}
+              >
+                GO TO DASHBOARD
+              </button>
+            </div>
           ) : (
             <form onSubmit={handleLogin}>
               <label
@@ -163,7 +192,7 @@ export default function Auth() {
         </div>
 
         <p style={{ textAlign: "center", marginTop: 16, fontSize: 10, color: "#d4d2cc" }}>
-          No password needed.{" "}
+          No password needed. Stay signed in until you sign out.{" "}
           <span
             role="button"
             tabIndex={0}
