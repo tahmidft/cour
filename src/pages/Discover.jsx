@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Layout from "../components/Layout";
 import DiscoverDetailPanel from "../components/DiscoverDetailPanel";
 import { useTrackedShowsContext } from "../context/TrackedShowsContext";
@@ -10,6 +10,50 @@ import toast from "react-hot-toast";
 const INITIAL_MIN_RATING = 85;
 const RATING_STEP = 15;
 const FLOOR_RATING = 40;
+
+function computeColumnCount(width) {
+  const gap = width <= 768 ? 10 : 14;
+  if (width <= 480) return 2;
+  const minCard = width <= 768 ? 130 : 160;
+  return Math.max(1, Math.floor((width + gap) / (minCard + gap)));
+}
+
+function deriveHasMore({ apiHasMore, mergedLength, visibleCount, rating }) {
+  if (apiHasMore) return true;
+  if (visibleCount < mergedLength) return true;
+  if (rating > FLOOR_RATING) return true;
+  return false;
+}
+
+function normalizeDisplayCount(requested, total, cols, hasMore) {
+  if (total === 0 || cols < 1) return 0;
+  if (!hasMore) return total;
+
+  const capped = Math.min(Math.max(requested, 0), total);
+  const fullRows = Math.floor(capped / cols) * cols;
+  if (fullRows >= cols) return fullRows;
+  return capped;
+}
+
+function useGridColumns(gridRef) {
+  const [columnCount, setColumnCount] = useState(4);
+
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+
+    const measure = () => {
+      setColumnCount(computeColumnCount(el.clientWidth));
+    };
+
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return columnCount;
+}
 
 function DiscoverCard({
   media,
@@ -159,6 +203,14 @@ export default function Discover() {
   const [detailCache, setDetailCache] = useState({});
   const [detailLoadingId, setDetailLoadingId] = useState(null);
   const [sortBy, setSortBy] = useState("match");
+  const [displayCount, setDisplayCount] = useState(0);
+  const gridRef = useRef(null);
+  const displayCountRef = useRef(0);
+  const columnCount = useGridColumns(gridRef);
+
+  useEffect(() => {
+    displayCountRef.current = displayCount;
+  }, [displayCount]);
 
   const trackedIds = shows.map((s) => s.anilist_id);
   const trackedSet = new Set(trackedIds);
@@ -195,11 +247,14 @@ export default function Discover() {
     async function load() {
       setLoading(true);
       setError(null);
+      setDisplayCount(0);
       let rating = INITIAL_MIN_RATING;
       try {
         let results = [];
+        let lastData = null;
         while (rating >= FLOOR_RATING && results.length === 0) {
           const data = await fetchDiscover(rating, []);
+          lastData = data;
           if (cancelled) return;
           results = data.results ?? [];
           if (results.length > 0) {
@@ -211,7 +266,7 @@ export default function Discover() {
         if (cancelled) return;
         setRecs(results);
         setMinRating(rating);
-        setHasMore(results.length > 0 && rating > FLOOR_RATING);
+        setHasMore(lastData?.hasMore ?? false);
       } catch (err) {
         if (!cancelled) {
           setError(err.message);
@@ -250,32 +305,120 @@ export default function Discover() {
     };
   }, [expandedId, detailCache]);
 
+  const sortedRecs = useMemo(() => sortDiscoverItems(recs, sortBy), [recs, sortBy]);
+
+  useEffect(() => {
+    if (loading || columnCount < 1 || sortedRecs.length === 0) return;
+    const canLoad = deriveHasMore({
+      apiHasMore: hasMore,
+      mergedLength: sortedRecs.length,
+      visibleCount: displayCount,
+      rating: minRating,
+    });
+    setDisplayCount((prev) => {
+      if (prev === 0) {
+        return normalizeDisplayCount(sortedRecs.length, sortedRecs.length, columnCount, canLoad);
+      }
+      return prev;
+    });
+  }, [loading, columnCount, sortedRecs.length, hasMore, minRating, sourceKey]);
+
+  useEffect(() => {
+    if (columnCount < 1 || displayCount === 0) return;
+    const canLoad = deriveHasMore({
+      apiHasMore: hasMore,
+      mergedLength: sortedRecs.length,
+      visibleCount: displayCount,
+      rating: minRating,
+    });
+    setDisplayCount((prev) =>
+      normalizeDisplayCount(prev, sortedRecs.length, columnCount, canLoad)
+    );
+  }, [columnCount, hasMore, minRating, sortedRecs.length]);
+
+  async function appendDiscoverBatch(currentRecs, currentMinRating) {
+    const nextRating = Math.max(FLOOR_RATING, currentMinRating - RATING_STEP);
+    const data = await fetchDiscover(nextRating, currentRecs);
+    const incoming = data.results ?? [];
+
+    const seen = new Set(currentRecs.map((r) => r.id));
+    const merged = [...currentRecs];
+    for (const item of incoming) {
+      if (!seen.has(item.id)) {
+        seen.add(item.id);
+        merged.push(item);
+      }
+    }
+
+    const nextMin = data.nextMinRating ?? nextRating;
+    const apiHasMore =
+      data.hasMore ??
+      (nextMin > FLOOR_RATING || (nextMin === FLOOR_RATING && incoming.length > 0));
+
+    return {
+      merged,
+      nextRating: nextMin,
+      apiHasMore,
+    };
+  }
+
   async function handleLoadMore() {
-    const nextRating = Math.max(FLOOR_RATING, minRating - RATING_STEP);
+    if (loadingMore) return;
+
+    const step = columnCount;
+    const targetCount = displayCountRef.current + step;
     setLoadingMore(true);
     setError(null);
+
     try {
-      const data = await fetchDiscover(nextRating, recs);
-      const incoming = data.results ?? [];
-      setRecs((prev) => {
-        const seen = new Set(prev.map((r) => r.id));
-        const merged = [...prev];
-        for (const item of incoming) {
-          if (!seen.has(item.id)) {
-            seen.add(item.id);
-            merged.push(item);
-          }
+      let merged = recs;
+      let rating = minRating;
+      let apiHasMore = hasMore;
+
+      if (merged.length < targetCount) {
+        while (merged.length < targetCount && (apiHasMore || rating > FLOOR_RATING)) {
+          const prevLength = merged.length;
+          const batch = await appendDiscoverBatch(merged, rating);
+          merged = batch.merged;
+          rating = batch.nextRating;
+          apiHasMore = batch.apiHasMore;
+          if (merged.length === prevLength && !apiHasMore && rating <= FLOOR_RATING) break;
         }
-        return merged;
+      }
+
+      const canLoad = deriveHasMore({
+        apiHasMore,
+        mergedLength: merged.length,
+        visibleCount: targetCount,
+        rating,
       });
-      setMinRating(nextRating);
-      const moreAvailable =
-        nextRating > FLOOR_RATING || (nextRating === FLOOR_RATING && incoming.length > 0);
-      setHasMore(moreAvailable && (incoming.length > 0 || nextRating > FLOOR_RATING));
-      if (incoming.length === 0 && nextRating <= FLOOR_RATING) setHasMore(false);
+      let nextDisplay = normalizeDisplayCount(
+        Math.min(targetCount, merged.length),
+        merged.length,
+        columnCount,
+        canLoad
+      );
+      if (nextDisplay <= displayCountRef.current && merged.length > displayCountRef.current) {
+        if (!canLoad) {
+          nextDisplay = merged.length;
+        } else if (merged.length >= displayCountRef.current + step) {
+          nextDisplay = normalizeDisplayCount(
+            displayCountRef.current + step,
+            merged.length,
+            columnCount,
+            canLoad
+          );
+        }
+      }
+
+      setRecs(merged);
+      setMinRating(rating);
+      setHasMore(apiHasMore);
+      setDisplayCount(nextDisplay);
     } catch (err) {
       toast.error(err.message);
     }
+
     setLoadingMore(false);
   }
 
@@ -291,8 +434,15 @@ export default function Discover() {
     setExpandedId((prev) => (prev === mediaId ? null : mediaId));
   }
 
+  const visibleRecs = sortedRecs.slice(0, displayCount);
   const nextThreshold = Math.max(FLOOR_RATING, minRating - RATING_STEP);
-  const sortedRecs = useMemo(() => sortDiscoverItems(recs, sortBy), [recs, sortBy]);
+  const canLoadMore = deriveHasMore({
+    apiHasMore: hasMore,
+    mergedLength: sortedRecs.length,
+    visibleCount: displayCount,
+    rating: minRating,
+  });
+  const showLoadMore = !loading && canLoadMore && displayCount > 0;
 
   return (
     <Layout activeTab="DISCOVER">
@@ -363,8 +513,12 @@ export default function Discover() {
           </div>
         )}
 
-        <div className="discover-grid">
-          {sortedRecs.map((media) => {
+        <div
+          ref={gridRef}
+          className="discover-grid"
+          style={{ ["--discover-cols"]: columnCount }}
+        >
+          {visibleRecs.map((media) => {
             const tracked = trackedSet.has(media.id);
             const expanded = expandedId === media.id;
             const detail = detailCache[media.id] ?? null;
@@ -392,7 +546,7 @@ export default function Discover() {
           })}
         </div>
 
-        {!loading && hasMore && recs.length > 0 && (
+        {showLoadMore && (
           <div style={{ textAlign: "center", marginTop: 24 }}>
             <button
               type="button"

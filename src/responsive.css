@@ -204,12 +204,11 @@
 
   /* Discover */
   .discover-grid {
-    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
     gap: 10px !important;
   }
 
   .discover-card--expanded {
-    grid-column: 1 / -1 !important;
+    grid-column: span 2;
   }
 
   .discover-card--expanded .discover-card-expand-row {
@@ -282,10 +281,6 @@
 }
 
 @media (max-width: 480px) {
-  .discover-grid {
-    grid-template-columns: repeat(2, 1fr) !important;
-  }
-
   .ticker-inner {
     font-size: 9px !important;
   }
