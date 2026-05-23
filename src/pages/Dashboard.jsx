@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { formatDistanceToNow } from "date-fns";
 import Layout from "../components/Layout";
 import ShowRow, { ShowRowSkeleton } from "../components/ShowRow";
+import SeasonPromptBanner from "../components/SeasonPromptBanner";
 import { useAuth } from "../hooks/useAuth";
+import { useSeasonPrompts } from "../hooks/useSeasonPrompts";
 import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { supabase } from "../lib/supabase";
@@ -18,7 +20,8 @@ import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { shows, loading, removeShow, updateWatchProgress } = useTrackedShowsContext();
+  const { shows, loading, removeShow, updateWatchProgress, addShow } = useTrackedShowsContext();
+  const { prompts, dismissPrompt, snoozePrompt, trackPrompt } = useSeasonPrompts(user?.id);
   const { styles, isDark } = useThemeContext();
   const {
     accent,
@@ -36,6 +39,7 @@ export default function Dashboard() {
   const [activeGenre, setActiveGenre] = useState("All genres");
   const [notifications, setNotifications] = useState([]);
   const [expandedShowId, setExpandedShowId] = useState(null);
+  const [promptBusyId, setPromptBusyId] = useState(null);
 
   const mapped = shows.map(mapTrackedShow);
   const seasons = buildSeasonList(mapped);
@@ -73,6 +77,27 @@ export default function Dashboard() {
   async function handleWatchUpdate(showId, count) {
     const err = await updateWatchProgress(showId, count);
     if (err) toast.error(err.message || "Could not update progress");
+  }
+
+  async function handlePromptTrack(prompt) {
+    setPromptBusyId(prompt.id);
+    const err = await trackPrompt(prompt, { addShow, updateWatchProgress, shows });
+    setPromptBusyId(null);
+    if (err) toast.error(err.message || "Could not track sequel");
+    else toast.success(`Tracking Season ${prompt.season_number}`);
+  }
+
+  async function handlePromptSnooze(prompt) {
+    setPromptBusyId(prompt.id);
+    await snoozePrompt(prompt);
+    setPromptBusyId(null);
+    toast.success("We'll remind you in about two weeks");
+  }
+
+  async function handlePromptDismiss(prompt) {
+    setPromptBusyId(prompt.id);
+    await dismissPrompt(prompt);
+    setPromptBusyId(null);
   }
 
   return (
@@ -248,6 +273,16 @@ export default function Dashboard() {
             >
               {activeSeason === "All seasons" ? "ALL SEASONS" : activeSeason} ／ 第2クール
             </span>
+          </div>
+
+          <div style={{ padding: "12px 16px 0" }}>
+            <SeasonPromptBanner
+              prompts={prompts}
+              busyId={promptBusyId}
+              onTrack={handlePromptTrack}
+              onSnooze={handlePromptSnooze}
+              onDismiss={handlePromptDismiss}
+            />
           </div>
 
           {loading &&

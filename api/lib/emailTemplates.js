@@ -56,6 +56,7 @@ export function buildSeasonResponseUrls(appUrl, { notifyToken, sequelAnilistId, 
   return {
     trackUrl: `${appUrl}/api/season-response?${params("track")}`,
     dismissUrl: `${appUrl}/api/season-response?${params("dismiss")}`,
+    snoozeUrl: `${appUrl}/api/season-response?${params("snooze")}`,
   };
 }
 
@@ -67,11 +68,14 @@ export function newSeasonEmail({
   newSeason,
   coverImage,
   bannerImage,
+  sequelSynopsis,
+  sequelScore,
   status,
   appUrl,
   notifyToken,
   trackUrl,
   dismissUrl,
+  snoozeUrl,
 }) {
   const statusLabel =
     status === "RELEASING" ? "now airing" : status === "NOT_YET_RELEASED" ? "coming soon" : status;
@@ -79,6 +83,14 @@ export function newSeasonEmail({
     sequelTitleEn && sequelTitleEn !== parentTitleEn
       ? `<p style="font-size:12px;color:#b8b6b0;margin:12px 0 0;">Listed as: <strong style="color:#e8e6df;">${sequelTitleEn}</strong></p>`
       : "";
+
+  const scoreLine =
+    sequelScore != null
+      ? `<span style="display:inline-block;font-size:11px;color:#a0c4f8;background:#a0c4f818;padding:4px 10px;border-radius:3px;margin-bottom:10px;">${sequelScore}% AniList score</span>`
+      : "";
+  const synopsisBlock = sequelSynopsis
+    ? `<p style="font-size:12px;line-height:1.65;color:#888;margin:12px 0 0;border-top:1px solid #ffffff10;padding-top:12px;">${sequelSynopsis}</p>`
+    : "";
 
   const body = `
     ${bannerImage ? `<img src="${bannerImage}" width="100%" style="max-height:160px;object-fit:cover;border-radius:4px;margin-bottom:16px;" alt="" />` : ""}
@@ -90,22 +102,61 @@ export function newSeasonEmail({
         You've been tracking <strong>${parentTitleEn}</strong> (Season ${watchedSeason}).
         <strong>Season ${newSeason}</strong> is ${statusLabel}.
       </p>
+      ${scoreLine}
+      ${synopsisBlock}
       <p style="font-size:13px;line-height:1.6;color:#b8b6b0;margin:12px 0 0;">
         Would you like to track it?
       </p>
       ${sequelLine}
     </div>
     <div style="text-align:center;margin-bottom:8px;">
-      <a href="${trackUrl}" style="display:inline-block;padding:14px 28px;background:#5cb85c;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.08em;border-radius:4px;margin:0 8px 12px 0;">Yes — track Season ${newSeason}</a>
-      <a href="${dismissUrl}" style="display:inline-block;padding:14px 28px;background:transparent;color:#888;text-decoration:none;font-size:12px;letter-spacing:0.08em;border-radius:4px;border:1px solid #444;margin:0 0 12px 8px;">No thanks</a>
+      <a href="${trackUrl}" style="display:inline-block;padding:14px 28px;background:#5cb85c;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.08em;border-radius:4px;margin:0 6px 12px 0;">Yes — track Season ${newSeason}</a>
+      <a href="${snoozeUrl}" style="display:inline-block;padding:14px 20px;background:#e8a838;color:#0d0d12;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.08em;border-radius:4px;margin:0 6px 12px 0;">Remind me later</a>
+      <a href="${dismissUrl}" style="display:inline-block;padding:14px 20px;background:transparent;color:#888;text-decoration:none;font-size:12px;letter-spacing:0.08em;border-radius:4px;border:1px solid #444;margin:0 0 12px 6px;">No thanks</a>
     </div>
     <p style="font-size:10px;color:#666;text-align:center;line-height:1.5;">
-      Track it to get weekly episode summaries in your inbox. Change preferences anytime in Settings.
+      Track it to get weekly episode summaries. &ldquo;Remind me later&rdquo; asks again in about two weeks.
     </p>`;
 
   return shell(
     parentTitleEn,
     "新シーズン / NEW SEASON",
+    body,
+    prefFooter({ appUrl, notifyToken, emailType: "new_season_only" })
+  );
+}
+
+export function seasonTrackConfirmEmail({
+  titleEn,
+  seasonNumber,
+  parentTitleEn,
+  coverImage,
+  appUrl,
+  notifyToken,
+}) {
+  const body = `
+    ${coverImage ? `<img src="${coverImage}" width="72" style="border-radius:4px;margin-bottom:12px;" alt="" />` : ""}
+    <div style="background:#1a1a24;padding:18px;border-radius:6px;margin-bottom:16px;">
+      <div style="font-size:11px;color:#5cb85c;letter-spacing:0.08em;margin-bottom:8px;">ADDED TO YOUR LIST</div>
+      <p style="font-size:14px;line-height:1.65;color:#e8e6df;margin:0;">
+        <strong>${titleEn}</strong> (Season ${seasonNumber}) is now on your tracked list.
+      </p>
+      ${
+        parentTitleEn
+          ? `<p style="font-size:12px;color:#888;margin:12px 0 0;">We marked Season ${seasonNumber - 1} of <strong style="color:#b8b6b0;">${parentTitleEn}</strong> as watched.</p>`
+          : ""
+      }
+    </div>
+    <p style="font-size:12px;color:#888;line-height:1.6;margin:0;">
+      You'll get weekly episode summaries when new episodes air. Manage preferences anytime in Settings.
+    </p>
+    <div style="text-align:center;margin-top:20px;">
+      <a href="${appUrl}/dashboard" style="display:inline-block;padding:12px 24px;background:#a0c4f8;color:#0d0d12;text-decoration:none;font-size:11px;font-weight:600;letter-spacing:0.1em;border-radius:4px;">OPEN DASHBOARD</a>
+    </div>`;
+
+  return shell(
+    titleEn,
+    "確認 / CONFIRMED",
     body,
     prefFooter({ appUrl, notifyToken, emailType: "new_season_only" })
   );

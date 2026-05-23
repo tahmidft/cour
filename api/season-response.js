@@ -4,8 +4,16 @@ import {
   seasonTrackSuccessHtml,
   seasonAlreadyTrackedHtml,
   seasonDismissedHtml,
+  seasonSnoozedHtml,
   seasonErrorHtml,
 } from "../lib/seasonResponseHtml.js";
+import { seasonTrackConfirmEmail } from "../lib/emailTemplates.js";
+import { sendCourEmail } from "../lib/resendClient.js";
+import {
+  markParentSeasonComplete,
+  setSeasonPromptStatus,
+  snoozeUntilDate,
+} from "../lib/seasonPrompts.js";
 
 const APP_URL = process.env.VITE_APP_URL || "https://cour-anime.vercel.app";
 
@@ -39,7 +47,7 @@ export default async function handler(req, res) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("id, email, notification_mode, weekly_reminders_all")
+    .select("id, email, notification_mode, weekly_reminders_all, notify_token")
     .eq("notify_token", token)
     .single();
 
@@ -80,6 +88,9 @@ export default async function handler(req, res) {
         type: `new_season_declined_${sequelId}`,
       });
     }
+
+    await setSeasonPromptStatus(supabase, profile.id, sequelId, "dismissed");
+
     const sn = Number.isNaN(seasonNumber) ? "?" : seasonNumber;
     return html(
       res,
@@ -88,11 +99,26 @@ export default async function handler(req, res) {
     );
   }
 
+  if (action === "snooze") {
+    const until = snoozeUntilDate();
+    await setSeasonPromptStatus(supabase, profile.id, sequelId, "snoozed", {
+      snooze_until: until,
+    });
+
+    const sn = Number.isNaN(seasonNumber) ? "?" : seasonNumber;
+    return html(
+      res,
+      200,
+      seasonSnoozedHtml({ titleEn: parentTitle, seasonNumber: sn, appUrl: APP_URL })
+    );
+  }
+
   if (action !== "track") {
     return html(res, 400, seasonErrorHtml({ message: "Unknown action.", appUrl: APP_URL }));
   }
 
   if (alreadyTracked) {
+    await setSeasonPromptStatus(supabase, profile.id, sequelId, "tracked");
     return html(
       res,
       200,
@@ -123,6 +149,8 @@ export default async function handler(req, res) {
     return html(res, 500, seasonErrorHtml({ message: insertErr.message, appUrl: APP_URL }));
   }
 
+  await markParentSeasonComplete(supabase, parentShowId, profile.id);
+
   if (profile.notification_mode === "none" || profile.weekly_reminders_all === false) {
     await supabase
       .from("profiles")
@@ -136,7 +164,24 @@ export default async function handler(req, res) {
     type: `new_season_tracked_${sequelId}`,
   });
 
+  await setSeasonPromptStatus(supabase, profile.id, sequelId, "tracked");
+
   const titleEn = media.title.english || media.title.romaji;
+  const coverImage = media.coverImage?.extraLarge || media.coverImage?.large;
+
+  await sendCourEmail({
+    to: profile.email,
+    subject: `✓ Tracking ${titleEn} — Season ${season}`,
+    html: seasonTrackConfirmEmail({
+      titleEn,
+      seasonNumber: season,
+      parentTitleEn: parentTitle !== "this show" ? parentTitle : null,
+      coverImage,
+      appUrl: APP_URL,
+      notifyToken: profile.notify_token,
+    }),
+  });
+
   return html(
     res,
     200,

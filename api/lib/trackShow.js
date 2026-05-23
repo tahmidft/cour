@@ -9,6 +9,8 @@ const TRACK_FIELDS = `
   episodes
   seasonYear
   genres
+  meanScore
+  description(asHtml: false)
   nextAiringEpisode { episode airingAt }
 `;
 

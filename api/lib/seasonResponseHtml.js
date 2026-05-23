@@ -60,6 +60,19 @@ export function seasonDismissedHtml({ titleEn, seasonNumber, appUrl }) {
   );
 }
 
+export function seasonSnoozedHtml({ titleEn, seasonNumber, appUrl }) {
+  return layout(
+    "Reminder set",
+    `
+    <p style="font-size:13px;line-height:1.6;color:#b8b6b0;margin:0;">
+      We'll ask again in about two weeks about tracking Season ${seasonNumber} of
+      <strong style="color:#e8e6df;">${titleEn}</strong>.
+    </p>
+    ${dashLink(appUrl)}
+    `
+  );
+}
+
 export function seasonErrorHtml({ message, appUrl }) {
   return layout(
     "Something went wrong",

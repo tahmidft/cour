@@ -90,7 +90,7 @@ export function useTrackedShows(userId) {
     [animeDetails]
   );
 
-  async function addShow(anilistMedia) {
+  async function addShow(anilistMedia, { seasonNumber = 1 } = {}) {
     const next = anilistMedia.nextAiringEpisode;
     const { error } = await supabase.from("tracked_shows").insert({
       user_id: userId,
@@ -106,7 +106,7 @@ export function useTrackedShows(userId) {
       next_airing_at: next ? next.airingAt * 1000 : null,
       air_day: inferAirDay(anilistMedia),
       season_year: anilistMedia.seasonYear,
-      season_number: 1,
+      season_number: seasonNumber,
       genres: anilistMedia.genres?.length ? JSON.stringify(anilistMedia.genres) : null,
     });
     if (!error) {

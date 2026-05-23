@@ -55,11 +55,15 @@ const SAMPLES = {
       newSeason: 2,
       coverImage: null,
       bannerImage: null,
+      sequelSynopsis:
+        "Eren Yeager and the Scout Regiment continue their fight against the Titans while uncovering secrets buried within the walls.",
+      sequelScore: 84,
       status: "NOT_YET_RELEASED",
       appUrl: APP_URL,
       notifyToken: "test-token",
       trackUrl: urls.trackUrl,
       dismissUrl: urls.dismissUrl,
+      snoozeUrl: urls.snoozeUrl,
     });
   },
 };

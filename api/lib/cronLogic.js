@@ -4,6 +4,8 @@ import {
   dailyDigestEmail,
   buildSeasonResponseUrls,
 } from "./emailTemplates.js";
+import { fetchAnimeForTrack } from "./trackShow.js";
+import { stripSynopsis, syncSeasonPromptAfterEmail } from "./seasonPrompts.js";
 
 const MODES = {
   WEEKLY: "weekly_summary",
@@ -126,6 +128,26 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
           const logType = `new_season_${sequelId}`;
           const declineType = `new_season_declined_${sequelId}`;
 
+          const { data: promptRow } = await supabase
+            .from("season_prompts")
+            .select("status, snooze_until")
+            .eq("user_id", show.user_id)
+            .eq("sequel_anilist_id", sequelId)
+            .maybeSingle();
+
+          if (promptRow?.status === "dismissed" || promptRow?.status === "tracked") continue;
+
+          const snoozeActive =
+            promptRow?.status === "snoozed" &&
+            promptRow.snooze_until &&
+            new Date(promptRow.snooze_until) > now;
+          if (snoozeActive) continue;
+
+          const snoozeExpired =
+            promptRow?.status === "snoozed" &&
+            promptRow.snooze_until &&
+            new Date(promptRow.snooze_until) <= now;
+
           const { data: existingLogs } = await supabase
             .from("notification_log")
             .select("id")
@@ -133,10 +155,30 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
             .in("type", [logType, declineType])
             .limit(1);
 
-          if (existingLogs?.length) continue;
+          if (existingLogs?.length && !snoozeExpired) continue;
+
+          let sequelMedia = null;
+          try {
+            sequelMedia = await fetchAnimeForTrack(sequelId);
+          } catch {
+            /* use relation node fallback */
+          }
 
           const sequelTitleEn =
-            sequel.node.title?.english || sequel.node.title?.romaji || show.title_en;
+            sequelMedia?.title?.english ||
+            sequelMedia?.title?.romaji ||
+            sequel.node.title?.english ||
+            sequel.node.title?.romaji ||
+            show.title_en;
+          const coverImage =
+            sequelMedia?.coverImage?.extraLarge ||
+            sequelMedia?.coverImage?.large ||
+            sequel.node.coverImage?.large ||
+            show.cover_image;
+          const bannerImage = sequelMedia?.bannerImage || sequel.node.bannerImage || show.banner_image;
+          const sequelSynopsis = stripSynopsis(sequelMedia?.description);
+          const sequelScore = sequelMedia?.meanScore ?? null;
+
           const urls = buildSeasonResponseUrls(appUrl, {
             notifyToken: profile.notify_token,
             sequelAnilistId: sequelId,
@@ -154,20 +196,39 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
               sequelTitleEn,
               watchedSeason,
               newSeason,
-              coverImage: sequel.node.coverImage?.large || show.cover_image,
-              bannerImage: sequel.node.bannerImage || show.banner_image,
-              status: sequel.node.status,
+              coverImage,
+              bannerImage,
+              sequelSynopsis,
+              sequelScore,
+              status: sequelMedia?.status || sequel.node.status,
               appUrl,
               notifyToken: profile.notify_token,
               trackUrl: urls.trackUrl,
               dismissUrl: urls.dismissUrl,
+              snoozeUrl: urls.snoozeUrl,
             }),
           });
-          await supabase.from("notification_log").insert({
+
+          await syncSeasonPromptAfterEmail(supabase, {
             user_id: show.user_id,
-            show_id: show.id,
-            type: logType,
+            parent_show_id: show.id,
+            sequel_anilist_id: sequelId,
+            season_number: newSeason,
+            parent_title_en: show.title_en,
+            sequel_title_en: sequelTitleEn,
+            sequel_cover: coverImage,
+            sequel_synopsis: sequelSynopsis,
+            sequel_score: sequelScore,
+            sequel_status: sequelMedia?.status || sequel.node.status,
           });
+
+          if (!existingLogs?.length) {
+            await supabase.from("notification_log").insert({
+              user_id: show.user_id,
+              show_id: show.id,
+              type: logType,
+            });
+          }
           sent++;
         }
       }
