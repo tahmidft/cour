@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "supabase:auth-urls": "node .cursor/skills/supabase/scripts/configure-auth-urls.mjs --site-url https://cour-anime.vercel.app",
     "resend:test": "node scripts/send-hello-resend.mjs",
     "test:email": "echo 'After vercel dev: curl -H \"Authorization: Bearer $CRON_SECRET\" \"http://localhost:3000/api/test-email?type=weekly_summary&to=YOUR_EMAIL\"'"
   },
