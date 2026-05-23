@@ -36,7 +36,7 @@ Magic links require **Site URL** and **Redirect URLs** to match `VITE_APP_URL` a
 
 The script sets:
 - `site_url` → production app URL (no trailing slash)
-- `uri_allow_list` → production `/**`, `http://localhost:5173/**`, and any existing non-localhost entries
+- `uri_allow_list` → production `/**`, `http://localhost:5173/**`, `http://localhost:3000/**`, and any existing non-localhost entries
 
 Reads `VITE_SUPABASE_URL` and `SUPABASE_ACCESS_TOKEN` from `.env`.
 
@@ -44,7 +44,7 @@ Reads `VITE_SUPABASE_URL` and `SUPABASE_ACCESS_TOKEN` from `.env`.
 
 Authentication → URL Configuration:
 - **Site URL:** `https://cour-anime.vercel.app`
-- **Redirect URLs:** `https://cour-anime.vercel.app/**`, `http://localhost:5173/**`
+- **Redirect URLs:** `https://cour-anime.vercel.app/**`, `http://localhost:5173/**`, `http://localhost:3000/**`
 
 ## Migrations
 
