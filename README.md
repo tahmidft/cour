@@ -32,8 +32,8 @@ This is a **portfolio project** built to demonstrate production-style engineerin
 
 | | |
 |---|---|
-| **Problem** | Anime fans track many shows across streaming sites. Airing times, sequels, and “what should I watch next?” are scattered across AniList, calendars, and email. |
-| **Solution** | One app: track your list, see countdowns and a weekly schedule, discover similar shows, and get optional email reminders — with magic-link auth and no passwords stored in-app. |
+| **Problem** | Anime fans spread their watching across many streaming platforms. Watchlists and episode progress live inside each service — easy to lose track, and hard to recover when a platform goes down or removes a title. |
+| **Solution** | Cour is a centralized, modern tracker for what you are watching now: one list, live countdowns, manual progress, and optional email summaries. Discover surfaces what to watch next, and new-season alerts help you pick up sequels without hunting across apps. |
 | **Scope** | End-to-end: React SPA, Vercel serverless APIs, Supabase Postgres + RLS, AniList GraphQL, Resend email, daily cron jobs. |
 
 ---
@@ -63,33 +63,33 @@ Cour is a React SPA on Vercel. The browser talks to **Supabase** for auth and us
 
 ```mermaid
 flowchart TB
-  subgraph Client["Browser · React + Vite"]
-    UI[Pages & Components]
+  subgraph client [Browser - React and Vite]
+    UI[Pages and Components]
     Cache[sessionStorage detail cache]
     UI --> Cache
   end
 
-  subgraph Vercel["Vercel"]
-    SPA[Static SPA · dist/]
-    API["/api/* serverless"]
-    CRON["Cron · 09:00 UTC daily"]
+  subgraph vercel_host [Vercel]
+    SPA[Static SPA build]
+    API[Serverless API routes]
+    CRON[Daily cron at 09:00 UTC]
     CRON --> API
   end
 
-  subgraph Supabase["Supabase"]
-    Auth[Magic-link Auth]
-    DB[(Postgres + RLS)]
+  subgraph supabase_host [Supabase]
+    Auth[Magic-link auth]
+    DB[(Postgres with RLS)]
     Auth --> DB
   end
 
-  subgraph External["External services"]
+  subgraph external [External services]
     AniList[AniList GraphQL]
-    Jikan[Jikan REST · MAL bridge]
-    Resend[Resend · transactional email]
+    Jikan[Jikan REST API]
+    Resend[Resend email]
   end
 
-  UI -->|JWT · CRUD| Supabase
-  UI -->|search · discover · anime| API
+  UI -->|JWT and CRUD| Auth
+  UI -->|search and discover| API
   API --> AniList
   API --> Jikan
   API -->|service role| DB
@@ -115,69 +115,69 @@ flowchart TB
 
 ```mermaid
 sequenceDiagram
-  participant U as User
-  participant R as React · ShowSearch
-  participant A as /api/search
-  participant S as animeSearch.js
-  participant AL as AniList
-  participant J as Jikan
+  participant User
+  participant ShowSearch as React ShowSearch
+  participant SearchAPI as api search route
+  participant SearchLib as animeSearch.js
+  participant AniList
+  participant Jikan
 
-  U->>R: type query (debounced 300ms)
-  R->>A: GET ?q=full metal
-  A->>S: searchAnimeImpl()
-  S->>S: resolveSearchQueries · buildSearchVariants
+  User->>ShowSearch: type query debounced 300ms
+  ShowSearch->>SearchAPI: GET search query
+  SearchAPI->>SearchLib: searchAnimeImpl
+  SearchLib->>SearchLib: aliases and query variants
   loop up to 6 variants
-    S->>AL: GraphQL search
+    SearchLib->>AniList: GraphQL search
   end
   alt weak results
-    S->>J: search MAL ids
-    J-->>S: mal ids
-    S->>AL: fetch by idMal
+    SearchLib->>Jikan: search by MAL id
+    Jikan-->>SearchLib: MAL ids
+    SearchLib->>AniList: fetch by idMal
   end
-  S->>S: scoreMediaMatch · rankSearchResults
-  A-->>R: top 20 ranked results
-  R-->>U: dropdown results
+  SearchLib->>SearchLib: score and rank results
+  SearchAPI-->>ShowSearch: top 20 results
+  ShowSearch-->>User: dropdown results
 ```
 
 ### Discover (personalized recommendations)
 
 ```mermaid
 sequenceDiagram
-  participant U as User
-  participant D as Discover.jsx
-  participant API as /api/discover
-  participant L as discover.js
-  participant AL as AniList
+  participant User
+  participant Discover as Discover page
+  participant DiscoverAPI as api discover route
+  participant DiscoverLib as discover.js
+  participant AniList
 
-  U->>D: open Discover
-  D->>API: minRating=85, tracked ids
-  API->>L: buildDiscoverPool()
-  L->>AL: recommendations per tracked show (max rating wins)
-  L-->>API: pooled candidates
-  API->>L: getDiscoverBatch(minRating, exclude)
-  L-->>D: batch + hasMore + nextMinRating
-  D->>D: full-row grid · sort · expandable cards
-  U->>D: Load more
-  D->>API: lower minRating tier (85→70→…→40)
-  D->>D: append · dedupe · reveal next row
+  User->>Discover: open Discover
+  Discover->>DiscoverAPI: minRating 85 and tracked ids
+  DiscoverAPI->>DiscoverLib: buildDiscoverPool
+  DiscoverLib->>AniList: recommendations per tracked show
+  DiscoverLib-->>DiscoverAPI: merged candidate pool
+  DiscoverAPI->>DiscoverLib: getDiscoverBatch
+  DiscoverLib-->>Discover: batch hasMore nextMinRating
+  Discover->>Discover: full-row grid sort expand cards
+  User->>Discover: Load more
+  Discover->>DiscoverAPI: lower minRating tier to 40 percent
+  Discover->>Discover: append dedupe reveal next row
 ```
 
 ### Daily cron (airing sync + email)
 
 ```mermaid
 flowchart LR
-  CRON[Vercel Cron] --> CS[/api/cron/check-shows]
-  CS --> PL[cronLogic.processCron]
-  PL --> SYNC[Sync airing times to tracked_shows]
-  PL --> NS{New season?}
-  NS -->|AniList SEQUEL| EMAIL1[Resend new-season email]
-  NS -->|no relation| FB[sequelFallback.js · budgeted title search]
-  FB --> EMAIL1
-  PL --> WK{Sunday?}
-  WK -->|yes| EMAIL2[Weekly summary]
-  PL --> DD{Daily digest mode?}
-  DD -->|episodes today| EMAIL3[Daily digest]
-  EMAIL1 --> SR[/api/season-response track·dismiss·snooze]
+  CronJob[Vercel Cron] --> CheckShows[api cron check-shows]
+  CheckShows --> ProcessCron[cronLogic processCron]
+  ProcessCron --> SyncAiring[Sync airing times]
+  ProcessCron --> NewSeason{New season detected}
+  NewSeason -->|AniList sequel link| NewSeasonEmail[Send new season email]
+  NewSeason -->|No sequel link| FallbackSearch[sequelFallback title search]
+  FallbackSearch --> NewSeasonEmail
+  ProcessCron --> WeeklyCheck{Is Sunday}
+  WeeklyCheck -->|yes| WeeklyEmail[Send weekly summary]
+  ProcessCron --> DailyCheck{Daily digest enabled}
+  DailyCheck -->|episodes today| DailyEmail[Send daily digest]
+  NewSeasonEmail --> SeasonResponse[season-response track dismiss snooze]
 ```
 
 ---
