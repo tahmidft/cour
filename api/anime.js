@@ -1,4 +1,5 @@
 import { anilistGraphql } from "./lib/anilistClient.js";
+import { getFranchiseSeasonInfo } from "./lib/franchiseSeasons.js";
 
 const detailCache = new Map();
 const CACHE_TTL_MS = 5 * 60 * 1000;
@@ -68,8 +69,11 @@ export default async function handler(req, res) {
       return res.status(404).json({ error: "Anime not found" });
     }
 
-    detailCache.set(id, { at: Date.now(), media });
-    return res.status(200).json({ media });
+    const franchiseSeasons = await getFranchiseSeasonInfo(id);
+    const payload = { ...media, franchiseSeasons };
+
+    detailCache.set(id, { at: Date.now(), media: payload });
+    return res.status(200).json({ media: payload });
   } catch (err) {
     const rateLimited = err.code === "rate_limited" || err.status === 429;
     return res.status(rateLimited ? 429 : 502).json({

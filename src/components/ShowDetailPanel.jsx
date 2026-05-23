@@ -1,4 +1,5 @@
 import { useThemeContext } from "../context/ThemeContext";
+import { formatFranchiseSeasonLabel } from "../lib/franchiseSeasons";
 import EpisodeProgress from "./EpisodeProgress";
 
 function stripMarkup(text) {
@@ -29,6 +30,11 @@ export default function ShowDetailPanel({
     .filter((t) => t.rank >= 60)
     .slice(0, 6)
     .map((t) => t.name);
+  const franchiseLabel = formatFranchiseSeasonLabel({
+    total: detail?.franchiseSeasons?.total,
+    index: detail?.franchiseSeasons?.index,
+    seasonNumber: show.seasonNumber,
+  });
 
   const borderColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
 
@@ -105,6 +111,9 @@ export default function ShowDetailPanel({
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12, fontSize: 10 }}>
             <span style={{ color: accent }}>{show.status}</span>
             {detail?.format && <span style={{ color: textSec }}>{detail.format}</span>}
+            {franchiseLabel && (
+              <span style={{ color: textSec }}>{franchiseLabel}</span>
+            )}
             {detail?.episodes && (
               <span style={{ color: textSec }}>{detail.episodes} episodes</span>
             )}

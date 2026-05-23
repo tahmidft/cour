@@ -6,6 +6,10 @@ import {
 } from "./emailTemplates.js";
 import { fetchAnimeForTrack } from "./trackShow.js";
 import { stripSynopsis, syncSeasonPromptAfterEmail } from "./seasonPrompts.js";
+import {
+  createFallbackBudget,
+  findFallbackSequelCandidates,
+} from "./sequelFallback.js";
 
 const MODES = {
   WEEKLY: "weekly_summary",
@@ -73,6 +77,7 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
   const isSunday = now.getDay() === 0;
 
   let sent = 0;
+  const fallbackBudget = createFallbackBudget();
 
   for (const [, { profile, shows }] of byUser) {
     let mode = profile.notification_mode || MODES.WEEKLY;
@@ -120,9 +125,30 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
 
         const watchedSeason = show.season_number || 1;
         const newSeason = watchedSeason + 1;
+        const candidates = sequels.map((sequel) => ({
+          id: sequel.node.id,
+          node: sequel.node,
+          seasonNumber: newSeason,
+        }));
 
-        for (const sequel of sequels) {
-          const sequelId = sequel.node.id;
+        if (candidates.length === 0 && !fallbackBudget.rateLimited) {
+          const fallback = await findFallbackSequelCandidates(
+            show,
+            newSeason,
+            trackedAnilistIds,
+            fallbackBudget
+          );
+          for (const { media: mediaResult, seasonNumber } of fallback) {
+            candidates.push({
+              id: mediaResult.id,
+              node: mediaResult,
+              seasonNumber,
+            });
+          }
+        }
+
+        for (const sequel of candidates) {
+          const sequelId = sequel.id;
           if (trackedAnilistIds.has(sequelId)) continue;
 
           const logType = `new_season_${sequelId}`;
@@ -182,20 +208,20 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
           const urls = buildSeasonResponseUrls(appUrl, {
             notifyToken: profile.notify_token,
             sequelAnilistId: sequelId,
-            seasonNumber: newSeason,
+            seasonNumber: sequel.seasonNumber,
             parentShowId: show.id,
           });
 
           await resend.emails.send({
             from: resendFrom,
             to: profile.email,
-            subject: `🎌 ${show.title_en} — Season ${newSeason} is here`,
+            subject: `🎌 ${show.title_en} — Season ${sequel.seasonNumber} is here`,
             html: newSeasonEmail({
               parentTitleEn: show.title_en,
               parentTitleJp: show.title_jp,
               sequelTitleEn,
               watchedSeason,
-              newSeason,
+              newSeason: sequel.seasonNumber,
               coverImage,
               bannerImage,
               sequelSynopsis,
@@ -213,7 +239,7 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
             user_id: show.user_id,
             parent_show_id: show.id,
             sequel_anilist_id: sequelId,
-            season_number: newSeason,
+            season_number: sequel.seasonNumber,
             parent_title_en: show.title_en,
             sequel_title_en: sequelTitleEn,
             sequel_cover: coverImage,
@@ -333,5 +359,10 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
     }
   }
 
-  return { processed: rows.length, emailsSent: sent };
+  return {
+    processed: rows.length,
+    emailsSent: sent,
+    fallbackSearchesUsed: fallbackBudget.used,
+    fallbackRateLimited: fallbackBudget.rateLimited,
+  };
 }

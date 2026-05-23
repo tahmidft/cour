@@ -10,6 +10,7 @@ const MEDIA_SEARCH_FIELDS = `
   title { romaji english native }
   coverImage { large extraLarge }
   bannerImage
+  format
   status
   episodes
   season

@@ -41,6 +41,7 @@ export function mapTrackedShow(show) {
     titleJp: show.title_jp,
     titleEn: show.title_en,
     season: show.season_year ? `S${show.season_number || 1}` : "",
+    seasonNumber: show.season_number || 1,
     seasonYear: show.season_year,
     status: STATUS_UI[show.status] || show.status || "UNKNOWN",
     rawStatus: show.status,
