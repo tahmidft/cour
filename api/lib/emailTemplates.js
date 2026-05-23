@@ -44,27 +44,67 @@ function shell(title, subtitle, body, footer) {
 </html>`;
 }
 
+export function buildSeasonResponseUrls(appUrl, { notifyToken, sequelAnilistId, seasonNumber, parentShowId }) {
+  const params = (action) =>
+    new URLSearchParams({
+      token: notifyToken,
+      sequel: String(sequelAnilistId),
+      action,
+      season: String(seasonNumber),
+      from: parentShowId || "",
+    });
+  return {
+    trackUrl: `${appUrl}/api/season-response?${params("track")}`,
+    dismissUrl: `${appUrl}/api/season-response?${params("dismiss")}`,
+  };
+}
+
 export function newSeasonEmail({
-  titleEn,
-  titleJp,
+  parentTitleEn,
+  parentTitleJp,
+  sequelTitleEn,
+  watchedSeason,
+  newSeason,
   coverImage,
   bannerImage,
-  seasonNumber,
   status,
   appUrl,
   notifyToken,
-  showId,
+  trackUrl,
+  dismissUrl,
 }) {
+  const statusLabel =
+    status === "RELEASING" ? "now airing" : status === "NOT_YET_RELEASED" ? "coming soon" : status;
+  const sequelLine =
+    sequelTitleEn && sequelTitleEn !== parentTitleEn
+      ? `<p style="font-size:12px;color:#b8b6b0;margin:12px 0 0;">Listed as: <strong style="color:#e8e6df;">${sequelTitleEn}</strong></p>`
+      : "";
+
   const body = `
-    ${bannerImage ? `<img src="${bannerImage}" width="100%" style="max-height:160px;object-fit:cover;border-radius:4px;margin-bottom:16px;" />` : ""}
-    <div style="font-size:10px;color:#888;margin-bottom:2px;">${titleJp || ""}</div>
-    <div style="background:#1a1a24;padding:14px;border-radius:4px;">
-      <div style="font-size:11px;color:#888;">NEW SEASON</div>
-      <div style="font-size:16px;font-weight:500;margin-top:6px;">${titleEn} — Season ${seasonNumber}</div>
-      <div style="font-size:12px;color:#a0c4f8;margin-top:6px;">${status}</div>
-    </div>`;
+    ${bannerImage ? `<img src="${bannerImage}" width="100%" style="max-height:160px;object-fit:cover;border-radius:4px;margin-bottom:16px;" alt="" />` : ""}
+    ${coverImage ? `<img src="${coverImage}" width="72" style="border-radius:4px;margin-bottom:12px;" alt="" />` : ""}
+    <div style="font-size:10px;color:#888;margin-bottom:2px;">${parentTitleJp || ""}</div>
+    <div style="background:#1a1a24;padding:18px;border-radius:6px;margin-bottom:20px;">
+      <div style="font-size:11px;color:#888;letter-spacing:0.08em;">NEW SEASON</div>
+      <p style="font-size:14px;line-height:1.65;color:#e8e6df;margin:12px 0 0;">
+        You've been tracking <strong>${parentTitleEn}</strong> (Season ${watchedSeason}).
+        <strong>Season ${newSeason}</strong> is ${statusLabel}.
+      </p>
+      <p style="font-size:13px;line-height:1.6;color:#b8b6b0;margin:12px 0 0;">
+        Would you like to track it?
+      </p>
+      ${sequelLine}
+    </div>
+    <div style="text-align:center;margin-bottom:8px;">
+      <a href="${trackUrl}" style="display:inline-block;padding:14px 28px;background:#5cb85c;color:#fff;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:0.08em;border-radius:4px;margin:0 8px 12px 0;">Yes — track Season ${newSeason}</a>
+      <a href="${dismissUrl}" style="display:inline-block;padding:14px 28px;background:transparent;color:#888;text-decoration:none;font-size:12px;letter-spacing:0.08em;border-radius:4px;border:1px solid #444;margin:0 0 12px 8px;">No thanks</a>
+    </div>
+    <p style="font-size:10px;color:#666;text-align:center;line-height:1.5;">
+      Track it to get weekly episode summaries in your inbox. Change preferences anytime in Settings.
+    </p>`;
+
   return shell(
-    titleEn,
+    parentTitleEn,
     "新シーズン / NEW SEASON",
     body,
     prefFooter({ appUrl, notifyToken, emailType: "new_season_only" })

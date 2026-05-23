@@ -3,6 +3,7 @@ import {
   newSeasonEmail,
   weeklySummaryEmail,
   dailyDigestEmail,
+  buildSeasonResponseUrls,
 } from "./lib/emailTemplates.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
@@ -39,18 +40,28 @@ const SAMPLES = {
       appUrl: APP_URL,
       notifyToken: "test-token",
     }),
-  new_season_only: () =>
-    newSeasonEmail({
-      titleEn: "Attack on Titan",
-      titleJp: "進撃の巨人",
+  new_season_only: () => {
+    const urls = buildSeasonResponseUrls(APP_URL, {
+      notifyToken: "test-token",
+      sequelAnilistId: 5114,
+      seasonNumber: 2,
+      parentShowId: "00000000-0000-0000-0000-000000000000",
+    });
+    return newSeasonEmail({
+      parentTitleEn: "Attack on Titan",
+      parentTitleJp: "進撃の巨人",
+      sequelTitleEn: "Attack on Titan Season 2",
+      watchedSeason: 1,
+      newSeason: 2,
       coverImage: null,
       bannerImage: null,
-      seasonNumber: 2,
       status: "NOT_YET_RELEASED",
       appUrl: APP_URL,
       notifyToken: "test-token",
-      showId: "00000000-0000-0000-0000-000000000000",
-    }),
+      trackUrl: urls.trackUrl,
+      dismissUrl: urls.dismissUrl,
+    });
+  },
 };
 
 export default async function handler(req, res) {

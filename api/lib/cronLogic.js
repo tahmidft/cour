@@ -2,6 +2,7 @@ import {
   newSeasonEmail,
   weeklySummaryEmail,
   dailyDigestEmail,
+  buildSeasonResponseUrls,
 } from "./emailTemplates.js";
 
 const MODES = {
@@ -41,7 +42,7 @@ async function fetchMedia(anilistId) {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      query: `query($id:Int){Media(id:$id,type:ANIME){status episodes nextAiringEpisode{episode airingAt} relations{edges{relationType node{id title{romaji}status type}}}}}`,
+      query: `query($id:Int){Media(id:$id,type:ANIME){status episodes nextAiringEpisode{episode airingAt} relations{edges{relationType node{id title{romaji english native} status type coverImage{large} bannerImage}}}}}`,
       variables: { id: anilistId },
     }),
   });
@@ -104,6 +105,8 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
       mode === MODES.SEASON || mode === MODES.WEEKLY || mode === MODES.DAILY;
 
     if (wantsNewSeason && resend) {
+      const trackedAnilistIds = new Set(shows.map((s) => s.anilist_id));
+
       for (const { show, media } of mediaByShow.values()) {
         const sequels =
           media.relations?.edges?.filter(
@@ -113,39 +116,59 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
               ["RELEASING", "NOT_YET_RELEASED"].includes(e.node.status)
           ) || [];
 
+        const watchedSeason = show.season_number || 1;
+        const newSeason = watchedSeason + 1;
+
         for (const sequel of sequels) {
-          const logType = `new_season_${sequel.node.id}`;
-          const { data: existing } = await supabase
+          const sequelId = sequel.node.id;
+          if (trackedAnilistIds.has(sequelId)) continue;
+
+          const logType = `new_season_${sequelId}`;
+          const declineType = `new_season_declined_${sequelId}`;
+
+          const { data: existingLogs } = await supabase
             .from("notification_log")
             .select("id")
             .eq("user_id", show.user_id)
-            .eq("type", logType)
-            .maybeSingle();
+            .in("type", [logType, declineType])
+            .limit(1);
 
-          if (!existing) {
-            await resend.emails.send({
-              from: resendFrom,
-              to: profile.email,
-              subject: `🎌 ${show.title_en} — New season detected`,
-              html: newSeasonEmail({
-                titleEn: show.title_en,
-                titleJp: show.title_jp,
-                coverImage: show.cover_image,
-                bannerImage: show.banner_image,
-                seasonNumber: (show.season_number || 1) + 1,
-                status: sequel.node.status,
-                appUrl,
-                notifyToken: profile.notify_token,
-                showId: show.id,
-              }),
-            });
-            await supabase.from("notification_log").insert({
-              user_id: show.user_id,
-              show_id: show.id,
-              type: logType,
-            });
-            sent++;
-          }
+          if (existingLogs?.length) continue;
+
+          const sequelTitleEn =
+            sequel.node.title?.english || sequel.node.title?.romaji || show.title_en;
+          const urls = buildSeasonResponseUrls(appUrl, {
+            notifyToken: profile.notify_token,
+            sequelAnilistId: sequelId,
+            seasonNumber: newSeason,
+            parentShowId: show.id,
+          });
+
+          await resend.emails.send({
+            from: resendFrom,
+            to: profile.email,
+            subject: `🎌 ${show.title_en} — Season ${newSeason} is here`,
+            html: newSeasonEmail({
+              parentTitleEn: show.title_en,
+              parentTitleJp: show.title_jp,
+              sequelTitleEn,
+              watchedSeason,
+              newSeason,
+              coverImage: sequel.node.coverImage?.large || show.cover_image,
+              bannerImage: sequel.node.bannerImage || show.banner_image,
+              status: sequel.node.status,
+              appUrl,
+              notifyToken: profile.notify_token,
+              trackUrl: urls.trackUrl,
+              dismissUrl: urls.dismissUrl,
+            }),
+          });
+          await supabase.from("notification_log").insert({
+            user_id: show.user_id,
+            show_id: show.id,
+            type: logType,
+          });
+          sent++;
         }
       }
     }
