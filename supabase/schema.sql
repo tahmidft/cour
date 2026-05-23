@@ -22,6 +22,7 @@ create table public.tracked_shows (
   banner_image text,
   status text default 'UNKNOWN',
   last_known_episode int default 0,
+  episodes_watched int not null default 0,
   total_episodes int,
   next_airing_at bigint,
   air_day text,

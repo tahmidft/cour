@@ -34,11 +34,15 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
       try {
         const media = await searchAnime(query);
         setResults(media);
-      } catch {
-        toast.error("Search failed");
+      } catch (err) {
+        const msg =
+          err?.message?.includes("rate limit") || err?.message?.includes("busy")
+            ? err.message
+            : "Search failed. Try again in a few seconds.";
+        toast.error(msg);
       }
       setLoading(false);
-    }, 400);
+    }, 300);
     return () => clearTimeout(id);
   }, [query]);
 

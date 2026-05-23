@@ -18,7 +18,7 @@ import toast from "react-hot-toast";
 
 export default function Dashboard() {
   const { user } = useAuth();
-  const { shows, loading, removeShow } = useTrackedShowsContext();
+  const { shows, loading, removeShow, updateWatchProgress } = useTrackedShowsContext();
   const { styles, isDark } = useThemeContext();
   const {
     accent,
@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [activeSeason, setActiveSeason] = useState("All seasons");
   const [activeGenre, setActiveGenre] = useState("All genres");
   const [notifications, setNotifications] = useState([]);
+  const [expandedShowId, setExpandedShowId] = useState(null);
 
   const mapped = shows.map(mapTrackedShow);
   const seasons = buildSeasonList(mapped);
@@ -67,6 +68,11 @@ export default function Dashboard() {
   async function handleRemove(id) {
     await removeShow(id);
     toast.success("Removed from list");
+  }
+
+  async function handleWatchUpdate(showId, count) {
+    const err = await updateWatchProgress(showId, count);
+    if (err) toast.error(err.message || "Could not update progress");
   }
 
   return (
@@ -256,6 +262,11 @@ export default function Dashboard() {
                 accent={accent}
                 isDark={isDark}
                 onRemove={handleRemove}
+                expanded={expandedShowId === show.id}
+                onToggle={() =>
+                  setExpandedShowId((id) => (id === show.id ? null : show.id))
+                }
+                onWatchUpdate={handleWatchUpdate}
               />
             ))}
 

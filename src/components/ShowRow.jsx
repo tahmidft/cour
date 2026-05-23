@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { useThemeContext } from "../context/ThemeContext";
+import { useTrackedShowsContext } from "../context/TrackedShowsContext";
+import ShowDetailPanel from "./ShowDetailPanel";
 
 function useCountdown(targetMs) {
   const [remaining, setRemaining] = useState(targetMs ? targetMs - Date.now() : null);
@@ -20,8 +22,20 @@ function useCountdown(targetMs) {
   return `${m}m ${s}s`;
 }
 
-export default function ShowRow({ show, index, accent, isDark, onRemove }) {
+export default function ShowRow({
+  show,
+  index,
+  accent,
+  isDark,
+  onRemove,
+  expanded,
+  onToggle,
+  onWatchUpdate,
+}) {
   const [hovered, setHovered] = useState(false);
+  const { getAnimeDetail } = useTrackedShowsContext();
+  const detail = getAnimeDetail(show.anilistId);
+  const detailLoading = expanded && !detail;
   const countdown = useCountdown(show.nextAiringAt);
   const { styles } = useThemeContext();
   const { textPrimary, textMuted } = styles;
@@ -49,215 +63,257 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
     border: `0.5px solid ${borderColor}`,
   };
 
-  return (
-    <div
-      className="show-row"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "36px 44px 1fr auto",
-        borderBottom: `1px solid ${borderColor}`,
-        background: "transparent",
-        transition: "background 0.15s",
-        cursor: "pointer",
-        position: "relative",
-        overflow: "hidden",
-      }}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-    >
-      {/* Layer 1: solid neutral base */}
-      <div
-        aria-hidden="true"
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: hovered ? bgHover : bg,
-          zIndex: 0,
-          pointerEvents: "none",
-        }}
-      />
+  const watched = show.episodesWatched ?? 0;
+  const total = show.totalEpisodes;
+  const hasWatchProgress = watched > 0 || (total && watched >= total);
 
-      {/* Layer 2: blurred cover color wash on top of base */}
-      {show.coverImage && (
+  function handleRowClick() {
+    onToggle?.();
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      onToggle?.();
+    }
+  }
+
+  return (
+    <div className="show-row-wrap">
+      <div
+        className="show-row"
+        role="button"
+        tabIndex={0}
+        aria-expanded={expanded}
+        onClick={handleRowClick}
+        onKeyDown={handleKeyDown}
+        style={{
+          display: "grid",
+          gridTemplateColumns: "36px 44px 1fr auto",
+          borderBottom: expanded ? "none" : `1px solid ${borderColor}`,
+          background: "transparent",
+          transition: "background 0.15s",
+          cursor: "pointer",
+          position: "relative",
+          overflow: "hidden",
+          outline: expanded ? `1px solid ${accent}55` : "none",
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
         <div
           aria-hidden="true"
           style={{
             position: "absolute",
             inset: 0,
-            backgroundImage: `url(${show.coverImage})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center left",
-            filter: isDark
-              ? "blur(18px) saturate(1.4) brightness(0.30)"
-              : "blur(18px) saturate(1.2) brightness(1.1)",
-            transform: "scale(1.2)",
-            opacity: isDark
-              ? hovered ? 0.75 : 0.60
-              : hovered ? 0.22 : 0.14,
-            transition: "opacity 0.2s ease",
-            zIndex: 1,
+            background: hovered || expanded ? bgHover : bg,
+            zIndex: 0,
             pointerEvents: "none",
           }}
         />
-      )}
 
-      {/* Row number */}
-      <div
-        className="show-row-index"
-        style={{
-          position: "relative",
-          zIndex: 2,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          writingMode: "vertical-rl",
-          fontSize: 9,
-          color: textMuted,
-          letterSpacing: "0.1em",
-          borderRight: `1px solid ${borderColor}`,
-          padding: "10px 0",
-        }}
-      >
-        {String(index + 1).padStart(2, "0")}
-      </div>
-
-      {/* Cover art */}
-      <div style={{ position: "relative", zIndex: 2, width: 44, minHeight: 64, flexShrink: 0 }}>
-        {show.coverImage ? (
-          <img
-            src={show.coverImage}
-            alt=""
-            style={{ width: 44, height: "100%", minHeight: 64, objectFit: "cover", display: "block" }}
-          />
-        ) : (
+        {show.coverImage && (
           <div
+            aria-hidden="true"
             style={{
-              width: 44,
-              minHeight: 64,
-              height: "100%",
-              background: isDark
-                ? "linear-gradient(135deg, #1a1a24, #2a2a38)"
-                : "linear-gradient(135deg, #e0e0ec, #f0f0f8)",
+              position: "absolute",
+              inset: 0,
+              backgroundImage: `url(${show.coverImage})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center left",
+              filter: isDark
+                ? "blur(18px) saturate(1.4) brightness(0.30)"
+                : "blur(18px) saturate(1.2) brightness(1.1)",
+              transform: "scale(1.2)",
+              opacity: isDark ? (hovered || expanded ? 0.75 : 0.6) : hovered || expanded ? 0.22 : 0.14,
+              transition: "opacity 0.2s ease",
+              zIndex: 1,
+              pointerEvents: "none",
             }}
           />
         )}
-      </div>
 
-      {/* Info */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          padding: "9px 12px",
-          borderRight: `1px solid ${borderColor}`,
-        }}
-      >
-        <div style={{ fontSize: 9, color: textMuted, letterSpacing: "0.05em", marginBottom: 1 }}>
-          {show.titleJp}
-        </div>
         <div
-          className="show-row-title"
+          className="show-row-index"
           style={{
-            fontSize: 13,
-            fontWeight: 500,
-            color: textPrimary,
-            marginBottom: 5,
-            fontFamily: "'Noto Sans JP', sans-serif",
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            writingMode: "vertical-rl",
+            fontSize: 9,
+            color: textMuted,
+            letterSpacing: "0.1em",
+            borderRight: `1px solid ${borderColor}`,
+            padding: "10px 0",
           }}
         >
-          {show.titleEn}{" "}
-          <span style={{ color: textMuted, fontWeight: 400 }}>{show.season}</span>
+          {String(index + 1).padStart(2, "0")}
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span
+
+        <div style={{ position: "relative", zIndex: 2, width: 44, minHeight: 64, flexShrink: 0 }}>
+          {show.coverImage ? (
+            <img
+              src={show.coverImage}
+              alt=""
+              style={{ width: 44, height: "100%", minHeight: 64, objectFit: "cover", display: "block" }}
+            />
+          ) : (
+            <div
+              style={{
+                width: 44,
+                minHeight: 64,
+                height: "100%",
+                background: isDark
+                  ? "linear-gradient(135deg, #1a1a24, #2a2a38)"
+                  : "linear-gradient(135deg, #e0e0ec, #f0f0f8)",
+              }}
+            />
+          )}
+        </div>
+
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            padding: "9px 12px",
+            borderRight: `1px solid ${borderColor}`,
+          }}
+        >
+          <div style={{ fontSize: 9, color: textMuted, letterSpacing: "0.05em", marginBottom: 1 }}>
+            {show.titleJp}
+          </div>
+          <div
+            className="show-row-title"
             style={{
-              fontSize: 8,
-              padding: "2px 7px",
-              letterSpacing: "0.06em",
-              background: badgeStyle.bg,
-              color: badgeStyle.color,
-              border: badgeStyle.border,
-              opacity: badgeStyle.opacity || 1,
+              fontSize: 13,
+              fontWeight: 500,
+              color: textPrimary,
+              marginBottom: 5,
+              fontFamily: "'Noto Sans JP', sans-serif",
             }}
           >
-            {show.status}
-          </span>
-          {show.airDay && (
-            <span style={{ fontSize: 9, color: textMuted }}>{show.airDay}</span>
-          )}
-        </div>
-      </div>
-
-      {/* Countdown + Remove — in-flow, no overlap */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 2,
-          display: "flex",
-          flexDirection: "row",
-          alignItems: "center",
-          gap: 10,
-          paddingRight: 14,
-        }}
-      >
-        {/* Remove button — takes space on hover, hidden otherwise */}
-        <div className="show-row-remove-wrap" style={{ width: hovered && onRemove ? "auto" : 0, overflow: "hidden", transition: "width 0.15s" }}>
-          {onRemove && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onRemove(show.id);
-              }}
+            {show.titleEn}{" "}
+            <span style={{ color: textMuted, fontWeight: 400 }}>{show.season}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            <span
               style={{
-                fontSize: 9,
-                padding: "4px 8px",
-                background: "rgba(200,34,42,0.15)",
-                color: "#c8222a",
-                border: "1px solid rgba(200,34,42,0.3)",
-                cursor: "pointer",
-                letterSpacing: "0.08em",
-                whiteSpace: "nowrap",
+                fontSize: 8,
+                padding: "2px 7px",
+                letterSpacing: "0.06em",
+                background: badgeStyle.bg,
+                color: badgeStyle.color,
+                border: badgeStyle.border,
+                opacity: badgeStyle.opacity || 1,
               }}
             >
-              REMOVE
-            </button>
+              {show.status}
+            </span>
+            {show.airDay && <span style={{ fontSize: 9, color: textMuted }}>{show.airDay}</span>}
+            {hasWatchProgress && (
+              <span style={{ fontSize: 9, color: accent, fontFamily: "monospace" }}>
+                {total ? `${watched}/${total}` : watched} watched
+              </span>
+            )}
+            <span style={{ fontSize: 9, color: textMuted }}>{expanded ? "▲ hide" : "▼ details"}</span>
+          </div>
+          {show.watchProgress != null && show.watchProgress > 0 && (
+            <div
+              style={{
+                marginTop: 6,
+                height: 2,
+                maxWidth: 120,
+                background: isDark ? "#2a2a36" : "#e0e0e8",
+              }}
+            >
+              <div style={{ height: "100%", width: `${show.watchProgress}%`, background: accent }} />
+            </div>
           )}
         </div>
 
-        {/* Countdown text */}
         <div
-          className="show-row-countdown"
           style={{
-            padding: "9px 0",
-            textAlign: "right",
-            minWidth: 90,
+            position: "relative",
+            zIndex: 2,
             display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            paddingRight: 14,
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {countdown ? (
-            <>
-              <div style={{ fontSize: 14, fontWeight: 600, color: accent, fontFamily: "monospace" }}>
-                {countdown}
-              </div>
-              <div style={{ fontSize: 9, color: textMuted, marginTop: 2 }}>
-                ep {show.episode + 1} drops
-              </div>
-            </>
-          ) : show.status === "FINISHED" ? (
-            <div style={{ fontSize: 11, color: textMuted }}>completed</div>
-          ) : (
-            <div style={{ fontSize: 11, color: accent, opacity: 0.7 }}>TBA</div>
-          )}
-          <div style={{ fontSize: 9, color: textMuted, marginTop: 4 }}>
-            {show.totalEpisodes
-              ? `${show.episode} / ${show.totalEpisodes} eps`
-              : "new season"}
+          <div
+            className="show-row-remove-wrap"
+            style={{ width: hovered && onRemove ? "auto" : 0, overflow: "hidden", transition: "width 0.15s" }}
+          >
+            {onRemove && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onRemove(show.id);
+                }}
+                style={{
+                  fontSize: 9,
+                  padding: "4px 8px",
+                  background: "rgba(200,34,42,0.15)",
+                  color: "#c8222a",
+                  border: "1px solid rgba(200,34,42,0.3)",
+                  cursor: "pointer",
+                  letterSpacing: "0.08em",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                REMOVE
+              </button>
+            )}
+          </div>
+
+          <div
+            className="show-row-countdown"
+            style={{
+              padding: "9px 0",
+              textAlign: "right",
+              minWidth: 90,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            {countdown ? (
+              <>
+                <div style={{ fontSize: 14, fontWeight: 600, color: accent, fontFamily: "monospace" }}>
+                  {countdown}
+                </div>
+                <div style={{ fontSize: 9, color: textMuted, marginTop: 2 }}>
+                  ep {show.episode + 1} drops
+                </div>
+              </>
+            ) : show.status === "FINISHED" ? (
+              <div style={{ fontSize: 11, color: textMuted }}>completed</div>
+            ) : (
+              <div style={{ fontSize: 11, color: accent, opacity: 0.7 }}>TBA</div>
+            )}
+            <div style={{ fontSize: 9, color: textMuted, marginTop: 4 }}>
+              {total ? `aired ep ${show.episode} / ${total}` : "new season"}
+            </div>
           </div>
         </div>
       </div>
+
+      {expanded && (
+        <ShowDetailPanel
+          show={show}
+          detail={detail}
+          loading={detailLoading}
+          accent={accent}
+          isDark={isDark}
+          onWatchUpdate={(n) => onWatchUpdate?.(show.id, n)}
+        />
+      )}
     </div>
   );
 }

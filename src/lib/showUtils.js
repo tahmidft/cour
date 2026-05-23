@@ -32,6 +32,9 @@ export function mapTrackedShow(show) {
   const nextEp = show.last_known_episode ?? 0;
   let genres = [];
   try { genres = show.genres ? JSON.parse(show.genres) : []; } catch { genres = []; }
+  const total = show.total_episodes ?? null;
+  const watched = show.episodes_watched ?? 0;
+
   return {
     id: show.id,
     anilistId: show.anilist_id,
@@ -43,7 +46,9 @@ export function mapTrackedShow(show) {
     rawStatus: show.status,
     airDay: show.air_day,
     episode: nextEp,
-    totalEpisodes: show.total_episodes,
+    episodesWatched: watched,
+    totalEpisodes: total,
+    watchProgress: total ? Math.min(100, Math.round((watched / total) * 100)) : null,
     nextAiringAt: show.next_airing_at,
     coverImage: show.cover_image,
     weeklyReminder: show.weekly_reminder,
