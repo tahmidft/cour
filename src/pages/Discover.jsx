@@ -4,19 +4,12 @@ import DiscoverDetailPanel from "../components/DiscoverDetailPanel";
 import { useTrackedShowsContext } from "../context/TrackedShowsContext";
 import { useThemeContext } from "../context/ThemeContext";
 import { fetchAnimeDetail } from "../lib/animeDetailsCache";
+import { formatMatchLabel, formatScoreLabel, sortDiscoverItems, DISCOVER_SORT_OPTIONS } from "../lib/discoverLabels";
 import toast from "react-hot-toast";
 
 const INITIAL_MIN_RATING = 85;
 const RATING_STEP = 15;
 const FLOOR_RATING = 40;
-
-function sortByMatch(items) {
-  return [...items].sort((a, b) => {
-    const bySim = (b.similarity ?? 0) - (a.similarity ?? 0);
-    if (bySim !== 0) return bySim;
-    return (b.meanScore ?? 0) - (a.meanScore ?? 0);
-  });
-}
 
 function DiscoverCard({
   media,
@@ -85,9 +78,7 @@ function DiscoverCard({
                   minHeight: 10,
                 }}
               >
-                {media.similarity != null
-                  ? `${Math.round(media.similarity)}% match`
-                  : "\u00a0"}
+                {formatMatchLabel(media.similarity) ?? "\u00a0"}
               </div>
               <div className="discover-card-genres">
                 {(media.genres || []).slice(0, 2).map((g) => (
@@ -112,7 +103,7 @@ function DiscoverCard({
                   minHeight: 11,
                 }}
               >
-                {media.meanScore ? `${media.meanScore}%` : "\u00a0"}
+                {formatScoreLabel(media.meanScore) ?? "\u00a0"}
               </div>
               <div style={{ fontSize: 8, color: textMuted, marginTop: 4 }}>
                 {expanded ? "▲ hide" : "▼ details"}
@@ -167,6 +158,7 @@ export default function Discover() {
   const [expandedId, setExpandedId] = useState(null);
   const [detailCache, setDetailCache] = useState({});
   const [detailLoadingId, setDetailLoadingId] = useState(null);
+  const [sortBy, setSortBy] = useState("match");
 
   const trackedIds = shows.map((s) => s.anilist_id);
   const trackedSet = new Set(trackedIds);
@@ -217,7 +209,7 @@ export default function Discover() {
           rating -= RATING_STEP;
         }
         if (cancelled) return;
-        setRecs(sortByMatch(results));
+        setRecs(results);
         setMinRating(rating);
         setHasMore(results.length > 0 && rating > FLOOR_RATING);
       } catch (err) {
@@ -274,7 +266,7 @@ export default function Discover() {
             merged.push(item);
           }
         }
-        return sortByMatch(merged);
+        return merged;
       });
       setMinRating(nextRating);
       const moreAvailable =
@@ -300,23 +292,59 @@ export default function Discover() {
   }
 
   const nextThreshold = Math.max(FLOOR_RATING, minRating - RATING_STEP);
-  const sortedRecs = useMemo(() => sortByMatch(recs), [recs]);
+  const sortedRecs = useMemo(() => sortDiscoverItems(recs, sortBy), [recs, sortBy]);
 
   return (
     <Layout activeTab="DISCOVER">
       <div style={{ padding: 16, background: bgPanel, minHeight: "calc(100vh - 130px)" }}>
         <div
+          className="discover-header"
           style={{
-            fontSize: 11,
-            letterSpacing: "0.15em",
+            display: "flex",
+            flexWrap: "wrap",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
             marginBottom: 16,
-            color: textPrimary,
           }}
         >
-          DISCOVER
-          <span style={{ fontSize: 9, color: textMuted, marginLeft: 8 }}>
-            {shows.length === 0 ? "top airing" : "sorted by match %"}
-          </span>
+          <div
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.15em",
+              color: textPrimary,
+            }}
+          >
+            DISCOVER
+            <span style={{ fontSize: 9, color: textMuted, marginLeft: 8 }}>
+              {shows.length === 0 ? "top airing" : "personalized picks"}
+            </span>
+          </div>
+
+          {!loading && recs.length > 0 && (
+            <label className="discover-sort" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 9, letterSpacing: "0.12em", color: textMuted }}>SORT</span>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+                style={{
+                  fontSize: 10,
+                  letterSpacing: "0.06em",
+                  padding: "6px 10px",
+                  background: isDark ? "#13131a" : "#fff",
+                  color: textPrimary,
+                  border: `1px solid ${border}`,
+                  cursor: "pointer",
+                }}
+              >
+                {DISCOVER_SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {loading && (

@@ -1,4 +1,5 @@
 import { useThemeContext } from "../context/ThemeContext";
+import { formatMatchLabel, formatScoreLabel } from "../lib/discoverLabels";
 
 function stripMarkup(text) {
   if (!text) return "";
@@ -25,6 +26,8 @@ export default function DiscoverDetailPanel({ media, detail, loading, accent, is
   const titleEn = media?.title?.english || media?.title?.romaji;
   const titleJp = media?.title?.native;
   const meanScore = detail?.meanScore ?? media?.meanScore;
+  const matchLabel = formatMatchLabel(media?.similarity);
+  const scoreLabel = formatScoreLabel(meanScore);
 
   const borderColor = isDark ? "rgba(255,255,255,0.07)" : "rgba(0,0,0,0.07)";
 
@@ -82,23 +85,23 @@ export default function DiscoverDetailPanel({ media, detail, loading, accent, is
         </h3>
 
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10, fontSize: 10 }}>
-          {media?.similarity != null && (
-            <span style={{ color: accent, fontFamily: "monospace" }}>
-              {Math.round(media.similarity)}% match
-            </span>
+          {matchLabel && (
+            <span style={{ color: accent, fontFamily: "monospace" }}>{matchLabel}</span>
           )}
-          {detail?.status && <span style={{ color: accent }}>{detail.status}</span>}
+          {detail?.status && <span style={{ color: textSec }}>{detail.status}</span>}
           {detail?.format && <span style={{ color: textSec }}>{detail.format}</span>}
           {(detail?.episodes || media?.episodes) && (
             <span style={{ color: textSec }}>
               {(detail?.episodes ?? media?.episodes)} episodes
             </span>
           )}
-          {meanScore && (
-            <span style={{ color: accent, fontFamily: "monospace" }}>{meanScore}%</span>
+          {scoreLabel && (
+            <span style={{ color: accent, fontFamily: "monospace" }}>{scoreLabel}</span>
           )}
           {studios.length > 0 && (
-            <span style={{ color: textMuted }}>{studios.join(" · ")}</span>
+            <span style={{ color: textMuted }}>
+              Studio {studios.join(" · ")}
+            </span>
           )}
         </div>
 
