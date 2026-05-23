@@ -72,13 +72,14 @@ export default function Dashboard() {
   return (
     <Layout activeTab="TRACKING">
       <div
+        className="dashboard-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "180px 1fr 168px",
           minHeight: "calc(100vh - 90px)",
         }}
       >
-        <div style={{ background: bgSidebar, borderRight: `1px solid ${border}` }}>
+        <div className="dashboard-filters" style={{ background: bgSidebar, borderRight: `1px solid ${border}` }}>
           <div
             style={{ borderBottom: `1px solid ${border}`, paddingBottom: 8, paddingTop: 10 }}
           >
@@ -231,6 +232,7 @@ export default function Dashboard() {
               {filteredShows.length} shows
             </span>
             <span
+              className="dashboard-list-meta"
               style={{
                 marginLeft: "auto",
                 fontSize: 9,
@@ -266,7 +268,7 @@ export default function Dashboard() {
           )}
         </div>
 
-        <div style={{ background: bgSidebar, borderLeft: `1px solid ${border}` }}>
+        <div className="dashboard-aside" style={{ background: bgSidebar, borderLeft: `1px solid ${border}` }}>
           <div style={{ borderBottom: `1px solid ${border}`, paddingBottom: 8 }}>
             <div
               style={{

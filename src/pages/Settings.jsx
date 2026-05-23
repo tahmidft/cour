@@ -73,6 +73,7 @@ export default function Settings() {
   return (
     <Layout activeTab="SETTINGS">
       <div
+        className="settings-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 1fr",

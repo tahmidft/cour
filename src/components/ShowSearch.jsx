@@ -59,6 +59,7 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
 
   return (
     <div
+      className="show-search-overlay"
       onClick={onClose}
       style={{
         position: "fixed",
@@ -71,6 +72,7 @@ export default function ShowSearch({ onAdd, onClose, trackedAnilistIds = [] }) {
       }}
     >
       <div
+        className="show-search-panel"
         onClick={(e) => e.stopPropagation()}
         style={{
           maxWidth: 720,

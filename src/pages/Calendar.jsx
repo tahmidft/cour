@@ -45,6 +45,7 @@ export default function Calendar() {
           <div style={{ color: textMuted, fontSize: 12 }}>Loading schedule...</div>
         )}
         <div
+          className="calendar-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(7, 1fr)",
@@ -55,6 +56,7 @@ export default function Calendar() {
           {grid.map(({ day, isToday, shows: dayShows }) => (
             <div
               key={day}
+              className="calendar-day"
               style={{
                 borderRight: `1px solid ${border}`,
                 background: isToday ? soft : isDark ? "#13131a" : "#fff",

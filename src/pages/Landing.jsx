@@ -17,28 +17,14 @@ export default function Landing() {
         fontFamily: "'Noto Sans JP', 'Helvetica Neue', sans-serif",
       }}
     >
-      <div style={{ background: "#a0c4f8", padding: "5px 0", textAlign: "center" }}>
+      <div className="landing-banner" style={{ background: "#a0c4f8", padding: "5px 0", textAlign: "center" }}>
         <span style={{ fontSize: 10, letterSpacing: "0.15em", color: "#fff" }}>
           ● ANIME TRACKING · EPISODE REMINDERS · NEW SEASON ALERTS ●
         </span>
       </div>
 
-      <div
-        style={{
-          maxWidth: 560,
-          margin: "0 auto",
-          padding: "80px 24px",
-          textAlign: "center",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "'Bebas Neue', sans-serif",
-            fontSize: 72,
-            letterSpacing: "0.12em",
-            lineHeight: 1,
-          }}
-        >
+      <div className="landing-hero" style={{ maxWidth: 560, margin: "0 auto", padding: "80px 24px", textAlign: "center" }}>
+        <div className="landing-title" style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 72, letterSpacing: "0.12em", lineHeight: 1 }}>
           COUR
         </div>
         <div style={{ fontSize: 14, color: "#a0c4f8", letterSpacing: "0.3em", marginBottom: 32 }}>

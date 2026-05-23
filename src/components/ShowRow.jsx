@@ -51,6 +51,7 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
 
   return (
     <div
+      className="show-row"
       style={{
         display: "grid",
         gridTemplateColumns: "36px 44px 1fr auto",
@@ -102,6 +103,7 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
 
       {/* Row number */}
       <div
+        className="show-row-index"
         style={{
           position: "relative",
           zIndex: 2,
@@ -154,6 +156,7 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
           {show.titleJp}
         </div>
         <div
+          className="show-row-title"
           style={{
             fontSize: 13,
             fontWeight: 500,
@@ -198,7 +201,7 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
         }}
       >
         {/* Remove button — takes space on hover, hidden otherwise */}
-        <div style={{ width: hovered && onRemove ? "auto" : 0, overflow: "hidden", transition: "width 0.15s" }}>
+        <div className="show-row-remove-wrap" style={{ width: hovered && onRemove ? "auto" : 0, overflow: "hidden", transition: "width 0.15s" }}>
           {onRemove && (
             <button
               type="button"
@@ -224,6 +227,7 @@ export default function ShowRow({ show, index, accent, isDark, onRemove }) {
 
         {/* Countdown text */}
         <div
+          className="show-row-countdown"
           style={{
             padding: "9px 0",
             textAlign: "right",

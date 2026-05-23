@@ -81,6 +81,7 @@ export default function Discover() {
         )}
 
         <div
+          className="discover-grid"
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
