@@ -57,11 +57,15 @@ async function fetchMedia(anilistId) {
 }
 
 export async function processCron({ supabase, resend, appUrl, resendFrom }) {
-  const { data: rows } = await supabase
+  const { data: rows, error: rowsError } = await supabase
     .from("tracked_shows")
     .select("*, profiles(id, email, notify_token, notification_mode, weekly_reminders_all)");
 
-  if (!rows?.length) return { processed: 0 };
+  if (rowsError) {
+    throw new Error(`tracked_shows query failed: ${rowsError.message}`);
+  }
+
+  if (!rows?.length) return { processed: 0, note: "no tracked shows found" };
 
   const byUser = new Map();
   for (const row of rows) {
