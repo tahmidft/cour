@@ -57,15 +57,34 @@ async function fetchMedia(anilistId) {
 }
 
 export async function processCron({ supabase, resend, appUrl, resendFrom }) {
+  // Step 1: load tracked shows with base profile info (columns guaranteed to exist)
   const { data: rows, error: rowsError } = await supabase
     .from("tracked_shows")
-    .select("*, profiles(id, email, notify_token, notification_mode, weekly_reminders_all)");
+    .select("*, profiles(id, email, notify_token)");
 
   if (rowsError) {
     throw new Error(`tracked_shows query failed: ${rowsError.message}`);
   }
 
   if (!rows?.length) return { processed: 0, note: "no tracked shows found" };
+
+  // Step 2: load notification prefs separately (columns added via migration; handle gracefully)
+  const userIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+  const { data: prefRows } = await supabase
+    .from("profiles")
+    .select("id, notification_mode, weekly_reminders_all")
+    .in("id", userIds);
+
+  const prefMap = new Map();
+  for (const p of prefRows ?? []) prefMap.set(p.id, p);
+
+  // Merge prefs back onto the profile objects, defaulting to weekly_summary
+  for (const row of rows) {
+    if (!row.profiles) continue;
+    const prefs = prefMap.get(row.user_id) ?? {};
+    row.profiles.notification_mode = prefs.notification_mode ?? "weekly_summary";
+    row.profiles.weekly_reminders_all = prefs.weekly_reminders_all ?? true;
+  }
 
   const byUser = new Map();
   for (const row of rows) {
