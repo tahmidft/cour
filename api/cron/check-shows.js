@@ -3,7 +3,7 @@ import { Resend } from "resend";
 import { processCron } from "../lib/cronLogic.js";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const APP_URL = process.env.VITE_APP_URL;
+const APP_URL = process.env.VITE_APP_URL || "https://cour-anime.vercel.app";
 const RESEND_FROM = process.env.RESEND_FROM || "COUR <onboarding@resend.dev>";
 
 export default async function handler(req, res) {

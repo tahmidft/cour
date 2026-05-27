@@ -1,5 +1,6 @@
 const ANILIST_URL = "https://graphql.anilist.co";
 const MIN_GAP_MS = 400;
+// Module-level — shared across requests within the same serverless instance lifetime
 let lastRequestAt = 0;
 
 export function isRateLimited(data, status) {

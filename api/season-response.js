@@ -151,10 +151,16 @@ export default async function handler(req, res) {
 
   await markParentSeasonComplete(supabase, parentShowId, profile.id);
 
-  if (profile.notification_mode === "none" || profile.weekly_reminders_all === false) {
+  // Only re-enable if the user had fully opted out — preserve their chosen mode otherwise
+  if (profile.weekly_reminders_all === false) {
     await supabase
       .from("profiles")
       .update({ notification_mode: "weekly_summary", weekly_reminders_all: true })
+      .eq("id", profile.id);
+  } else if (profile.notification_mode === "none") {
+    await supabase
+      .from("profiles")
+      .update({ notification_mode: "weekly_summary" })
       .eq("id", profile.id);
   }
 

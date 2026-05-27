@@ -109,11 +109,11 @@ export async function getDiscoverBatch(
     .slice(0, limit);
 
   const remaining = pool.filter(
-    ({ media, rating }) => rating >= 40 && !excludeIds.has(media.id)
+    ({ media, rating }) => rating >= minRating && !excludeIds.has(media.id)
   ).length;
 
   return {
     results: batch.map(({ media, rating }) => ({ ...media, similarity: rating })),
-    remainingAfterBatch: remaining - batch.length,
+    remainingAfterBatch: Math.max(0, remaining - batch.length),
   };
 }

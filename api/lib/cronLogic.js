@@ -119,16 +119,15 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
       mediaByShow.set(show.id, { show, media });
 
       const next = media.nextAiringEpisode;
+      const updateFields = { status: media.status };
       if (next) {
-        await supabase
-          .from("tracked_shows")
-          .update({
-            last_known_episode: Math.max(show.last_known_episode || 0, next.episode - 1),
-            next_airing_at: next.airingAt * 1000,
-            status: media.status,
-          })
-          .eq("id", show.id);
+        updateFields.last_known_episode = Math.max(show.last_known_episode || 0, next.episode - 1);
+        updateFields.next_airing_at = next.airingAt * 1000;
+      } else {
+        // Show finished or on hiatus — clear stale airing time
+        updateFields.next_airing_at = null;
       }
+      await supabase.from("tracked_shows").update(updateFields).eq("id", show.id);
     }
 
     const wantsNewSeason =
@@ -205,6 +204,9 @@ export async function processCron({ supabase, resend, appUrl, resendFrom }) {
             .limit(1);
 
           if (existingLogs?.length && !snoozeExpired) continue;
+
+          // Re-check in case it was just tracked in this same cron run
+          if (trackedAnilistIds.has(sequelId)) continue;
 
           let sequelMedia = null;
           try {
